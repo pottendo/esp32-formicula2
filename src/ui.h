@@ -4,21 +4,26 @@
 #include <lvgl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <WString.h>
 
 /* prototypes */
 #define TFT_LED 15
 void init_lvgl(void);
 void setup_ui(void);
+void log_msg(const char *s);
+void log_msg(const String s);
+extern lv_obj_t *log_handle;
 
 /* class defintions */
 class button_label_c
 {
+    lv_obj_t *parent;
     const char *label_text;
     lv_obj_t *obj, *label;
     int x_pos, y_pos;
 
 public:
-    button_label_c(const char *l, int x, int y, lv_align_t a);
+    button_label_c(lv_obj_t *tab, const char *l, int x, int y, lv_align_t a);
     ~button_label_c() = default;
 
     void cb(lv_event_t event);
@@ -26,6 +31,7 @@ public:
 
 class slider_label_c
 {
+    lv_obj_t *parent;
     const char *label_text;
     lv_obj_t *slider, *label;
     lv_obj_t *slider_up_label, *slider_down_label;
@@ -34,7 +40,7 @@ class slider_label_c
     int width;
 
 public:
-    slider_label_c(const char *l, int x, int y, int min, int max, int width, lv_align_t a);
+    slider_label_c(lv_obj_t *tab, const char *l, int x, int y, int min, int max, int width, lv_align_t a);
     ~slider_label_c() = default;
 
     void cb(lv_event_t event);

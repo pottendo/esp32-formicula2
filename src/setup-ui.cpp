@@ -6,6 +6,7 @@
 TFT_eSPI tft = TFT_eSPI(); /* TFT instance */
 lv_disp_buf_t disp_buf;
 lv_color_t buf[LV_HOR_RES_MAX * 10];
+lv_obj_t *log_handle;
 
 /* Display flushing */
 static void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area,
@@ -97,24 +98,37 @@ void init_lvgl(void)
 void setup_ui(void)
 {
 	extern const lv_img_dsc_t splash_screen;
-	lv_obj_t * icon = lv_img_create(lv_scr_act(), NULL);
-	lv_img_set_src(icon, &splash_screen);
-
 	static const char *switch_labels[] = {
 		"Heizlampe 1: ",
-		"Heizmatte 1: ",
 		"Heizlampe 2: ",
-		"Heizmatte 2: ",
+		"Heizmatte 1: ",
 		"Lüfter Nest: ",
 		"Befeuchtung: ",
 		NULL};
 	static int offs = 32;
+	
+	lv_obj_t *tabview;
+    tabview = lv_tabview_create(lv_scr_act(), NULL);
+    lv_obj_t *tab1 = lv_tabview_add_tab(tabview, "Controls");
+    lv_obj_t *tab2 = lv_tabview_add_tab(tabview, "Log");
 
+	/* tab 1 - controls */
+	lv_obj_t *icon = lv_img_create(tab1, NULL);
+	lv_img_set_src(icon, &splash_screen);
+    
 	for (int x = 0; switch_labels[x]; x++)
 	{
-		new button_label_c(switch_labels[x], 10, 10 + x * offs, LV_ALIGN_IN_TOP_LEFT);
+		new button_label_c(tab1, switch_labels[x], 10, 10 + x * offs, LV_ALIGN_IN_TOP_LEFT);
 	}
 
-	temp_disp = new slider_label_c("Temp:    ", 10, -30, 22, 28, 120, LV_ALIGN_IN_BOTTOM_LEFT);
-	hum_disp = new slider_label_c("Feuchte: ", 10, -76, 30, 99, 120, LV_ALIGN_IN_BOTTOM_LEFT);
+	temp_disp = new slider_label_c(tab1, "Temp:    ", 10, -30, 22, 28, 120, LV_ALIGN_IN_BOTTOM_LEFT);
+	hum_disp = new slider_label_c(tab1, "Feuchte: ", 10, -76, 30, 99, 120, LV_ALIGN_IN_BOTTOM_LEFT);
+
+	/* tab 2 logs */
+	log_handle = lv_textarea_create(tab2, NULL);
+    lv_obj_set_size(log_handle, 200, 200);
+    lv_obj_align(log_handle, NULL, LV_ALIGN_CENTER, 0, 0);
+
+	lv_textarea_set_text(log_handle, "Log started...\n");
+	log_msg("GUI Setup finished.");
 }
