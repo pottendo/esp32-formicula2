@@ -115,6 +115,6 @@ void setup_ui(void)
 		new button_label_c(switch_labels[x], 10, 10 + x * offs, LV_ALIGN_IN_TOP_LEFT);
 	}
 
-	temp_disp = new slider_label_c("Temp:    ", 10, -30, 15, 45, 120, LV_ALIGN_IN_BOTTOM_LEFT);
-	hum_disp = new slider_label_c("Feuchte: ", 10, -70, 30, 99, 120, LV_ALIGN_IN_BOTTOM_LEFT);
+	temp_disp = new slider_label_c("Temp:    ", 10, -30, 22, 28, 120, LV_ALIGN_IN_BOTTOM_LEFT);
+	hum_disp = new slider_label_c("Feuchte: ", 10, -76, 30, 99, 120, LV_ALIGN_IN_BOTTOM_LEFT);
 }

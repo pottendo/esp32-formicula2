@@ -38,7 +38,7 @@ public:
     ~slider_label_c() = default;
 
     void cb(lv_event_t event);
-    void set_label(const char *label);
+    void set_label(const char *label, lv_color_t c = LV_COLOR_GRAY);
 };
 extern slider_label_c *temp_disp;
 extern slider_label_c *hum_disp;
