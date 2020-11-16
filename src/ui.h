@@ -15,7 +15,8 @@
 #define V(seM)
 #endif
 
-template <typename T> class myRange;
+template <typename T>
+class myRange;
 /* prototypes */
 #define TFT_LED 15
 void init_lvgl(void);
@@ -31,7 +32,8 @@ extern myRange<float> ctrl_humrange;
 void setup_wifi(void);
 void loop_wifi(void);
 
-template <typename T> class myRange; // forward declaration
+template <typename T>
+class myRange; // forward declaration
 
 /* class defintions */
 class button_label_c
@@ -84,8 +86,13 @@ public:
     ~analogMeter() = default;
 
     inline lv_obj_t *get_area() { return area; }
-    inline void set_val(float v) { val = v; set_act(); }
-    inline void set_act() { 
+    inline void set_val(float v)
+    {
+        val = v;
+        set_act();
+    }
+    inline void set_act()
+    {
         lv_label_set_text_fmt(temp_label, "%d.%02d", 
         static_cast<int>(val), 
         static_cast<int>(static_cast<float>((float) val - static_cast<int>(val)) * 100) % 100);

@@ -30,9 +30,9 @@ const char *circuit_names[] = {
 tiny_hash_c<String, genCircuit *> circuit_objs{10};
 
 myRange<float> def_temprange{25.0, 27.0};
-myRange<float> def_humrange{85.0, 90.0};
+myRange<float> def_humrange{65.0, 95.0};
 myRange<float> ctrl_temprange{22.0, 30.0};
-myRange<float> ctrl_humrange{80.0, 99.99};
+myRange<float> ctrl_humrange{60.0, 99.99};
 
 void update_sensors(void)
 {
@@ -66,7 +66,7 @@ void setup()
     io_spare1 = new ioSwitch(25);
     io_spare2 = new ioSwitch(26);
 
-    circuit_halogen = new myCircuit<tempSensor>(String(circuit_names[0]), *tsensor, *io_halogen, 10, def_temprange);
+    circuit_halogen = new myCircuit<tempSensor>(String(circuit_names[0]), *tsensor, *io_halogen, 10, def_temprange, false, myRange<struct tm>{{0,0,7}, {0,00,23}});
     circuit_objs.store(String(circuit_names[0]), circuit_halogen);
     circuit_infrared = new myCircuit<tempSensor>(String(circuit_names[1]), *tsensor, *io_infrared, 20, def_temprange);
     circuit_objs.store(String(circuit_names[1]), circuit_infrared);

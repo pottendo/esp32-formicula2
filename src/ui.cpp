@@ -64,7 +64,7 @@ slider_label_c::slider_label_c(lv_obj_t *p, const char *l, myRange<float> &ra, i
     slider = lv_slider_create(area, NULL);
     lv_slider_set_type(slider, LV_SLIDER_TYPE_RANGE);
     lv_obj_set_width(slider, w - 20);
-    lv_obj_align(slider, area, LV_ALIGN_IN_TOP_RIGHT, -10, h/2);
+    lv_obj_align(slider, area, LV_ALIGN_IN_TOP_RIGHT, -10, h / 2);
     lv_obj_set_event_cb(slider, slider_cb_wrapper);
     slider_callbacks.store(slider, this);
     lv_slider_set_range(slider, ctrl_range.get_lbound() * 100, ctrl_range.get_ubound() * 100);
@@ -148,21 +148,39 @@ analogMeter::analogMeter(lv_obj_t *tab, const char *n, myRange<float> r, const c
 template <>
 bool myRange<struct tm>::is_above(struct tm &t)
 {
-    if ((t.tm_hour <= ubound.tm_hour) ||
-        (t.tm_min <= ubound.tm_min) ||
-        (t.tm_sec <= ubound.tm_sec))
+    if (t.tm_hour > ubound.tm_hour)
+        return true;
+    else if (t.tm_hour == ubound.tm_hour)
+        if (t.tm_min > ubound.tm_min)
+            return true;
+        else if (t.tm_min == ubound.tm_min)
+            if (t.tm_sec > ubound.tm_sec)
+                return true;
+            else
+                return false;
+        else
+            return false;
+    else
         return false;
-    return true;
 }
 
 template <>
 bool myRange<struct tm>::is_below(struct tm &t)
 {
-    if ((t.tm_hour >= lbound.tm_hour) ||
-        (t.tm_min >= lbound.tm_min) ||
-        (t.tm_sec >= lbound.tm_sec))
+    if (t.tm_hour < lbound.tm_hour)
+        return true;
+    else if (t.tm_hour == lbound.tm_hour)
+        if (t.tm_min < lbound.tm_min)
+            return true;
+        else if (t.tm_min == lbound.tm_min)
+            if (t.tm_sec < lbound.tm_sec)
+                return true;
+            else
+                return false;
+        else
+            return false;
+    else
         return false;
-    return true;
 }
 
 template <>

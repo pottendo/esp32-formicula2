@@ -30,8 +30,8 @@ class myCircuit : public genCircuit
     lv_task_t *circuit_task;
 
 public:
-    myCircuit(const String &n, Sensor &s, ioSwitch &i, float p, myRange<float> &r, bool inv = false)
-        : circuit_name(n), sensor(s), io(i), duty_cycle({0, 0, 0}, {59, 59, 23}), range(r), period(p), invers(inv)
+    myCircuit(const String &n, Sensor &s, ioSwitch &i, float p, myRange<float> &r, bool inv = false, myRange<struct tm> dc = {{0, 0, 0}, {59, 59, 23}})
+        : circuit_name(n), sensor(s), io(i), duty_cycle(dc), range(r), period(p), invers(inv)
     {
         circuit_task = lv_task_create(myCircuit::update_circuit, static_cast<uint32_t>(period * 1000), LV_TASK_PRIO_LOW, this);
         if (!circuit_task)
@@ -63,6 +63,7 @@ public:
             log_msg(circuit_name + "Failed to obtain time");
             return;
         }
+        Serial.println(&t, "%A, %B %d %Y %H:%M:%S");
         if (duty_cycle.is_in(t))
         {
             /* we're on duty */
