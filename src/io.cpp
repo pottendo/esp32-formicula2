@@ -1,3 +1,4 @@
+#include <list>
 #include "ui.h"
 #include "io.h"
 
@@ -8,64 +9,42 @@ void tempTask(void *pvParameters);
  * Sets flag dhtUpdated to true for handling in loop()
  * called by Ticker getTempTimer
  */
-static void triggerGetTemp(myDHT *t)
+static void triggerGetTemp(lv_task_t *t)
 {
-    t->resume();
+    //  t->resume();
+    myDHT *obj = static_cast<myDHT *>(t->user_data);
+    obj->update_data();
 }
 
 myDHT::myDHT(int p, DHTesp::DHT_MODEL_t m)
-    : pin(p), model(m), tempTaskHandle(NULL), temp(28), hum(68)
+    : pin(p), model(m), temp(-500), hum(-99)
 {
     dht_obj.setup(pin, m);
     mutex = xSemaphoreCreateMutex();
     xSemaphoreGive(mutex); // Initialize to be accessible
-
-    // Start task to get temperature
-    xTaskCreatePinnedToCore(
-        tempTask,        /* Function to implement the task */
-        "tempTask ",     /* Name of the task */
-        4000,            /* Stack size in words */
-        this,            /* Task input parameter */
-        5,               /* Priority of the task */
-        &tempTaskHandle, /* Task handle. */
-        1);              /* Core where the task should run */
-
-    if (tempTaskHandle == NULL)
+    lv_task_t *dht_io_task = lv_task_create(triggerGetTemp, 2000, LV_TASK_PRIO_LOW, this);
+    if (!dht_io_task)
     {
-        log_msg("Failed to start task for temperature update");
-        //return false;
-    }
-    else
-    {
-        // Start update of environment data every 20 seconds
-        tempTicker.attach<myDHT *>(2, triggerGetTemp, this);
+        log_msg("Failed to create taks for DHT sensor.");
     }
 }
 
 void myDHT::update_data(void)
 {
-    log_msg(String("DHT(") + get_pin() + ')');
-    P(mutex);
-    temp += ((rand() % 10) - 5.0) / 100.0;
-    hum += ((rand() % 10) - 5.0) / 100.0;
-    V(mutex);
-}
-/**
- * Task to reads temperature from DHT11 sensor
- * @param pvParameters
- *    pointer to task parameters
- */
-void tempTask(void *pvParameters)
-{
-    myDHT *t = static_cast<myDHT *>(pvParameters);
-
-    log_msg(String("Task") + String(t->get_pin()));
-    vTaskSuspend(NULL);
-    while (1) // tempTask loop
+    
+    TempAndHumidity newValues = dht_obj.getTempAndHumidity();
+    if (dht_obj.getStatus() != 0)
     {
-        t->update_data();
-        vTaskSuspend(NULL);
+        log_msg(String("DHT (") + get_pin() + ") error status: " + String(dht_obj.getStatusString()));
+        return;
     }
+    P(mutex);
+    temp = newValues.temperature;
+    hum = newValues.humidity; // ((rand() % 100) - 50.0) / 20.0;
+    V(mutex);
+    //log_msg(String("DHT(") + get_pin() + "): Temp = " + String(temp) + ", Hum = " + String(hum));
+    std::for_each(parents.begin(), parents.end(),
+                  [&](avgDHT *p) { p->update_data(this); });
 }
 
 #if 0

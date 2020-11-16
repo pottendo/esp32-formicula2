@@ -2,11 +2,45 @@
 #include "TFT_eSPI.h"
 
 #include "ui.h"
+#include "circuits.h"
 
 TFT_eSPI tft = TFT_eSPI(); /* TFT instance */
 lv_disp_buf_t disp_buf;
 lv_color_t buf[LV_HOR_RES_MAX * 10];
 lv_obj_t *log_handle;
+xSemaphoreHandle ui_mutex;
+tiny_hash_c<String, button_label_c *> button_objs{10};
+
+/* helpers */
+void log_msg(const char *s)
+{
+#if 0
+	P(ui_mutex);
+	lv_textarea_add_text(log_handle, s);
+	lv_textarea_add_char(log_handle, '\n');
+	V(ui_mutex);
+#endif
+	printf("%s\n", s);
+}
+
+void log_msg(String s)
+{
+	log_msg(s.c_str());
+}
+
+#if 0
+static void lv_refresher(void *t)
+{
+	while (1)
+	{
+		//printf("lv_refresher running...\n");
+		P(ui_mutex);
+		lv_task_handler();
+		V(ui_mutex);
+		delay(10);
+	}
+}
+#endif
 
 /* Display flushing */
 static void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area,
@@ -67,11 +101,16 @@ void init_lvgl(void)
 {
 	pinMode(TFT_LED, OUTPUT);
 	digitalWrite(TFT_LED, LOW); // Display-Beleuchtung einschalten
+
+	ui_mutex = xSemaphoreCreateMutex();
+	xSemaphoreGive(ui_mutex);
+
 	lv_init();
 
 	tft.begin();									 /* TFT init */
 	tft.setRotation(0);								 /* Portrait orientation */
-	uint16_t calData[5] = {365, 3383, 251, 3334, 2}; // for landscape use { 247, 3296, 294, 3429, 1 };
+	uint16_t calData[5] = {365, 3383, 251, 3334, 2}; // for portrait
+	//uint16_t calData[5] = { 247, 3296, 294, 3429, 1 }; // for landscape
 	//tft.calibrateTouch(calData,TFT_MAGENTA, TFT_BLACK, 15);
 	printf("caldata: %d, %d, %d, %d, %d\n", calData[0], calData[1], calData[2], calData[3], calData[4]);
 	tft.setTouch(calData);
@@ -93,42 +132,50 @@ void init_lvgl(void)
 	indev_drv.type = LV_INDEV_TYPE_POINTER;
 	indev_drv.read_cb = my_touchpad_read;
 	lv_indev_drv_register(&indev_drv);
+
+	lv_task_enable(true);
 }
 
 void setup_ui(void)
 {
 	extern const lv_img_dsc_t splash_screen;
-	static const char *switch_labels[] = {
-		"Heizlampe 1: ",
-		"Heizlampe 2: ",
-		"Heizmatte 1: ",
-		"Lüfter Nest: ",
-		"Befeuchtung: ",
-		NULL};
+	extern const char *circuit_names[];
 	static int offs = 32;
-	
-	lv_obj_t *tabview;
-    tabview = lv_tabview_create(lv_scr_act(), NULL);
-    lv_obj_t *tab1 = lv_tabview_add_tab(tabview, "Controls");
-    lv_obj_t *tab2 = lv_tabview_add_tab(tabview, "Log");
 
-	/* tab 1 - controls */
-	lv_obj_t *icon = lv_img_create(tab1, NULL);
+	lv_obj_t *tabview;
+	tabview = lv_tabview_create(lv_scr_act(), NULL);
+	lv_obj_t *tab1 = lv_tabview_add_tab(tabview, "Status");
+	lv_obj_t *tab2 = lv_tabview_add_tab(tabview, "Controls");
+	lv_obj_t *tab3 = lv_tabview_add_tab(tabview, "Config");
+
+	/* tab 1 - Status */
+	temp_meter = new analogMeter(tab1, "Temperatur", ctrl_temprange, "C");
+	lv_obj_align(temp_meter->get_area(), tab1, LV_ALIGN_IN_TOP_MID, 0, 0);
+
+	hum_meter = new analogMeter(tab1, "Feuchtigkeit", ctrl_humrange, "\%");
+	lv_obj_align(hum_meter->get_area(), tab1, LV_ALIGN_IN_BOTTOM_MID, 0, -10);
+
+	/* tab 2 - Controls */
+	lv_obj_t *icon = lv_img_create(tab2, NULL);
 	lv_img_set_src(icon, &splash_screen);
-    
-	for (int x = 0; switch_labels[x]; x++)
+
+	for (int x = 0; circuit_names[x]; x++)
 	{
-		new button_label_c(tab1, switch_labels[x], 10, 10 + x * offs, LV_ALIGN_IN_TOP_LEFT);
+		button_objs.store(String (circuit_names[x]), new button_label_c(tab2, circuit_names[x], 10, 10 + x * offs, LV_ALIGN_IN_TOP_LEFT));
 	}
 
-	temp_disp = new slider_label_c(tab1, "Temp:    ", 10, -30, 22, 28, 120, LV_ALIGN_IN_BOTTOM_LEFT);
-	hum_disp = new slider_label_c(tab1, "Feuchte: ", 10, -76, 30, 99, 120, LV_ALIGN_IN_BOTTOM_LEFT);
+	/* tab 3 - Config */
+	temp_disp = new slider_label_c(tab3, "Temperatur", ctrl_temprange, 230, 84, LV_ALIGN_IN_BOTTOM_LEFT);
+	lv_obj_align(temp_disp->get_area(), tab3, LV_ALIGN_IN_TOP_MID, 0, 0);
+	hum_disp = new slider_label_c(tab3, "Feuchtigkeit", ctrl_humrange, 230, 84, LV_ALIGN_IN_BOTTOM_LEFT);
+	lv_obj_align(hum_disp->get_area(), tab3, LV_ALIGN_IN_TOP_MID, 0, 84);
 
-	/* tab 2 logs */
+	/* tab N logs */
+#if 0
 	log_handle = lv_textarea_create(tab2, NULL);
-    lv_obj_set_size(log_handle, 200, 200);
-    lv_obj_align(log_handle, NULL, LV_ALIGN_CENTER, 0, 0);
-
+	lv_obj_set_size(log_handle, 200, 200);
+	lv_obj_align(log_handle, NULL, LV_ALIGN_CENTER, 0, 0);
 	lv_textarea_set_text(log_handle, "Log started...\n");
+#endif
 	log_msg("GUI Setup finished.");
 }
