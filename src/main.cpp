@@ -27,10 +27,7 @@ const char *circuit_names[] = {
     "Fan",
     "Fog",
     NULL};
-tiny_hash_c<String, genCircuit *> circuit_objs{10};
 
-myRange<float> def_temprange{25.0, 27.0};
-myRange<float> def_humrange{65.0, 95.0};
 myRange<float> ctrl_temprange{22.0, 30.0};
 myRange<float> ctrl_humrange{60.0, 99.99};
 
@@ -41,8 +38,6 @@ void update_sensors(void)
     temp_disp->set_label(b);
     sprintf(b, "L: %.2f", (float)th1->get_hum());
     hum_disp->set_label(b);
-
-    //printf(b);
 }
 
 void setup()
@@ -66,14 +61,25 @@ void setup()
     io_spare1 = new ioSwitch(25);
     io_spare2 = new ioSwitch(26);
 
-    circuit_halogen = new myCircuit<tempSensor>(String(circuit_names[0]), *tsensor, *io_halogen, 10, def_temprange, false, myRange<struct tm>{{0,0,7}, {0,00,23}});
-    circuit_objs.store(String(circuit_names[0]), circuit_halogen);
-    circuit_infrared = new myCircuit<tempSensor>(String(circuit_names[1]), *tsensor, *io_infrared, 20, def_temprange);
-    circuit_objs.store(String(circuit_names[1]), circuit_infrared);
-    circuit_fan = new myCircuit<humSensor>(String(circuit_names[2]), *hsensor, *io_fan, 30, def_humrange, true);      // inverse logic for fan as hum drops
-    circuit_objs.store(String(circuit_names[2]), circuit_fan);
-    circuit_fog = new myCircuit<humSensor>(String(circuit_names[3]), *hsensor, *io_fog, 50, def_humrange);
-    circuit_objs.store(String(circuit_names[3]), circuit_fog);
+    uiElements *ui = setup_ui();
+    circuit_halogen =
+        new myCircuit<tempSensor>(ui, String(circuit_names[0]), *tsensor, *io_halogen,
+                                  1,
+                                  myRange<float>{26.0, 28.0}, ctrl_temprange,
+                                  false,
+                                  myRange<struct tm>{{0, 0, 7}, {0, 0, 23}});
+    circuit_infrared =
+        new myCircuit<tempSensor>(ui, String(circuit_names[1]), *tsensor, *io_infrared,
+                                  2,
+                                  myRange<float>{24.0, 26.0}, ctrl_temprange);
+    circuit_fan =
+        new myCircuit<humSensor>(ui, String(circuit_names[2]), *hsensor, *io_fan, 3,
+                                 {85.0, 95.0}, ctrl_humrange,
+                                 true); // inverse logic for fan as hum drops
+    circuit_fog =
+        new myCircuit<humSensor>(ui, String(circuit_names[3]), *hsensor, *io_fog,
+                                 5,
+                                 {75.0, 85.0}, ctrl_humrange);
 #if 0
     circuit_spare1 = new myCircuit<humSensor>(String("Spare1"), *hsensor, *io_spare1, 0.250);
     circuit_spare2 = new myCircuit<tempSensor>(String("Spare2"), *tsensor, *io_spare2, 4);

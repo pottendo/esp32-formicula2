@@ -17,10 +17,13 @@
 
 template <typename T>
 class myRange;
+class uiElements;
+class genCircuit;
+
 /* prototypes */
 #define TFT_LED 15
 void init_lvgl(void);
-void setup_ui(void);
+uiElements *setup_ui(void);
 void log_msg(const char *s);
 void log_msg(const String s);
 extern lv_obj_t *log_handle;
@@ -35,35 +38,71 @@ void loop_wifi(void);
 template <typename T>
 class myRange; // forward declaration
 
-/* class defintions */
-class button_label_c
+typedef enum
 {
-    lv_obj_t *parent;
-    const char *label_text;
-    lv_obj_t *obj, *label;
-    int x_pos, y_pos;
+    UI_STATUS,
+    UI_CONTROLS,
+    UI_SETTINGS
+} ui_elements_t;
+
+class uiElements
+{
+    lv_obj_t *tab_view;
+    lv_obj_t *tab_status, *tab_controls, *tab_settings;
+    int stat_x = 0, stat_y = 0;
+    int ctrl_x = 0, ctrl_y = 0;
+    int setgs_x = 0, setgs_y = 0;
 
 public:
-    button_label_c(lv_obj_t *tab, const char *l, int x, int y, lv_align_t a);
+    uiElements();
+    ~uiElements() = default;
+
+    inline lv_obj_t *get_status() { return tab_status; }
+    inline lv_obj_t *get_controls() { return tab_controls; }
+    inline lv_obj_t *get_settings() { return tab_settings; }
+
+    void add_status(lv_obj_t *e);
+    void add_control(lv_obj_t *e);
+    void add_setting(lv_obj_t *e);
+};
+
+class uiCommons
+{
+protected:
+    genCircuit *circuit;
+    lv_obj_t *area;
+
+public:
+    uiCommons() = default;
+    ~uiCommons() = default;
+
+    inline lv_obj_t *get_area() { return area; }
+};
+
+/* class defintions */
+class button_label_c : public uiCommons
+{
+    const char *label_text;
+    lv_obj_t *obj, *label;
+
+public:
+    button_label_c(lv_obj_t *parent, genCircuit *c, const char *l, int w, int h, lv_align_t a);
     ~button_label_c() = default;
 
     void cb(lv_event_t event);
     void set(uint8_t v);
 };
 
-class slider_label_c
+class slider_label_c : public uiCommons
 {
-    lv_obj_t *area;
     const char *label_text;
     myRange<float> &ctrl_range;
     lv_obj_t *slider, *label;
     lv_obj_t *slider_up_label, *slider_down_label;
 
 public:
-    slider_label_c(lv_obj_t *tab, const char *l, myRange<float> &ra, int width, int height, lv_align_t a);
+    slider_label_c(lv_obj_t *parent, genCircuit *c, const char *l, myRange<float> &ra, myRange<float> &da, int width, int height, lv_align_t a);
     ~slider_label_c() = default;
-
-    inline lv_obj_t *get_area(void) { return area; }
 
     void cb(lv_event_t event);
     void set_label(const char *label, lv_color_t c = LV_COLOR_GRAY);
@@ -73,9 +112,8 @@ extern slider_label_c *hum_disp;
 
 /* analog display meter */
 
-class analogMeter
+class analogMeter : public uiCommons
 {
-    lv_obj_t *area;
     const char *name;
     float val;
     lv_obj_t *lmeter, *temp_label;
@@ -85,7 +123,6 @@ public:
     analogMeter(lv_obj_t *tab, const char *n, myRange<float> r, const char *unit);
     ~analogMeter() = default;
 
-    inline lv_obj_t *get_area() { return area; }
     inline void set_val(float v)
     {
         val = v;
@@ -93,9 +130,9 @@ public:
     }
     inline void set_act()
     {
-        lv_label_set_text_fmt(temp_label, "%d.%02d", 
-        static_cast<int>(val), 
-        static_cast<int>(static_cast<float>((float) val - static_cast<int>(val)) * 100) % 100);
+        lv_label_set_text_fmt(temp_label, "%d.%02d",
+                              static_cast<int>(val),
+                              static_cast<int>(static_cast<float>((float)val - static_cast<int>(val)) * 100) % 100);
         lv_linemeter_set_value(lmeter, val);
     }
 };

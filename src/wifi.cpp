@@ -5,12 +5,21 @@
 #include <time.h>
 
 #include "ui.h"
+#include "wifi.h"
+
+myTime *time_obj;
 
 static WebServer server;
 static AutoConnect portal(server);
-const char *ntpServer = "pool.ntp.org";
-const long gmtOffset_sec = 1 * 3600;
-const int daylightOffset_sec = 0;
+
+myTime::myTime()
+{
+    mutex = xSemaphoreCreateMutex();
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+    V(mutex);
+    printLocalTime();
+    lv_task_create(myTime::sync_clock, 1000 * 60*60*24 /* 1x daily ntp sync */, LV_TASK_PRIO_LOWEST, this);
+}
 
 void printLocalTime()
 {
@@ -38,8 +47,7 @@ void setup_wifi(void)
     }
     log_msg("done.\nSetting up local time...");
     //init and get the time
-    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-    printLocalTime();
+    time_obj = new myTime();
 }
 
 void loop_wifi(void)

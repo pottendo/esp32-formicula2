@@ -136,39 +136,11 @@ void init_lvgl(void)
 	lv_task_enable(true);
 }
 
-void setup_ui(void)
+uiElements *setup_ui(void)
 {
-	extern const lv_img_dsc_t splash_screen;
-	extern const char *circuit_names[];
-	static int offs = 32;
-
-	lv_obj_t *tabview;
-	tabview = lv_tabview_create(lv_scr_act(), NULL);
-	lv_obj_t *tab1 = lv_tabview_add_tab(tabview, "Status");
-	lv_obj_t *tab2 = lv_tabview_add_tab(tabview, "Controls");
-	lv_obj_t *tab3 = lv_tabview_add_tab(tabview, "Config");
-
-	/* tab 1 - Status */
-	temp_meter = new analogMeter(tab1, "Temperatur", ctrl_temprange, "C");
-	lv_obj_align(temp_meter->get_area(), tab1, LV_ALIGN_IN_TOP_MID, 0, 0);
-
-	hum_meter = new analogMeter(tab1, "Feuchtigkeit", ctrl_humrange, "\%");
-	lv_obj_align(hum_meter->get_area(), tab1, LV_ALIGN_IN_BOTTOM_MID, 0, -10);
-
-	/* tab 2 - Controls */
-	lv_obj_t *icon = lv_img_create(tab2, NULL);
-	lv_img_set_src(icon, &splash_screen);
-
-	for (int x = 0; circuit_names[x]; x++)
-	{
-		button_objs.store(String (circuit_names[x]), new button_label_c(tab2, circuit_names[x], 10, 10 + x * offs, LV_ALIGN_IN_TOP_LEFT));
-	}
+	uiElements *ui = new uiElements();
 
 	/* tab 3 - Config */
-	temp_disp = new slider_label_c(tab3, "Temperatur", ctrl_temprange, 230, 84, LV_ALIGN_IN_BOTTOM_LEFT);
-	lv_obj_align(temp_disp->get_area(), tab3, LV_ALIGN_IN_TOP_MID, 0, 0);
-	hum_disp = new slider_label_c(tab3, "Feuchtigkeit", ctrl_humrange, 230, 84, LV_ALIGN_IN_BOTTOM_LEFT);
-	lv_obj_align(hum_disp->get_area(), tab3, LV_ALIGN_IN_TOP_MID, 0, 84);
 
 	/* tab N logs */
 #if 0
@@ -178,4 +150,5 @@ void setup_ui(void)
 	lv_textarea_set_text(log_handle, "Log started...\n");
 #endif
 	log_msg("GUI Setup finished.");
+	return ui;
 }
