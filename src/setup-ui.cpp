@@ -8,8 +8,6 @@ TFT_eSPI tft = TFT_eSPI(); /* TFT instance */
 lv_disp_buf_t disp_buf;
 lv_color_t buf[LV_HOR_RES_MAX * 10];
 lv_obj_t *log_handle;
-xSemaphoreHandle ui_mutex;
-tiny_hash_c<String, button_label_c *> button_objs{10};
 
 /* helpers */
 void log_msg(const char *s)
@@ -27,20 +25,6 @@ void log_msg(String s)
 {
 	log_msg(s.c_str());
 }
-
-#if 0
-static void lv_refresher(void *t)
-{
-	while (1)
-	{
-		//printf("lv_refresher running...\n");
-		P(ui_mutex);
-		lv_task_handler();
-		V(ui_mutex);
-		delay(10);
-	}
-}
-#endif
 
 /* Display flushing */
 static void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area,
@@ -102,9 +86,6 @@ void init_lvgl(void)
 	pinMode(TFT_LED, OUTPUT);
 	digitalWrite(TFT_LED, LOW); // Display-Beleuchtung einschalten
 
-	ui_mutex = xSemaphoreCreateMutex();
-	xSemaphoreGive(ui_mutex);
-
 	lv_init();
 
 	tft.begin();									 /* TFT init */
@@ -136,14 +117,11 @@ void init_lvgl(void)
 	lv_task_enable(true);
 }
 
-uiElements *setup_ui(void)
+uiElements *setup_ui(const int ui_ss_timeout)
 {
-	uiElements *ui = new uiElements();
-
-	/* tab 3 - Config */
-
+	uiElements *ui = new uiElements(ui_ss_timeout);
+ #if 0
 	/* tab N logs */
-#if 0
 	log_handle = lv_textarea_create(tab2, NULL);
 	lv_obj_set_size(log_handle, 200, 200);
 	lv_obj_align(log_handle, NULL, LV_ALIGN_CENTER, 0, 0);

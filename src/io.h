@@ -50,16 +50,24 @@ public:
 
 class ioSwitch
 {
-    uint8_t pin, mode;
+    uint8_t pin;
+    bool invers;
+    uint8_t mode;
+    const String on{"on"};
+    const String off{"off"};
 
 public:
-    ioSwitch(uint8_t gpio, uint8_t m = OUTPUT) : pin(gpio), mode(m) { pinMode(pin, m); }
+    ioSwitch(uint8_t gpio, bool i = false, uint8_t m = OUTPUT) : pin(gpio), invers(i), mode(m) { pinMode(pin, m); }
     ~ioSwitch() = default;
 
     inline int state() { return digitalRead(pin); }
-    inline int set(uint8_t n)
+    inline int set(uint8_t n, bool ign_invers = false)
     {
         int res = state();
+        if (invers && !ign_invers)
+        {
+            n = (n == HIGH) ? LOW : HIGH;
+        }
         digitalWrite(pin, n);
         return res;
     }
@@ -69,6 +77,14 @@ public:
         set((res == LOW) ? HIGH : LOW);
         return res;
     }
+    const String &to_string(void)
+    {
+        int s = state();
+//        if (invers)
+//            return ((s == HIGH) ? off : on);
+        return ((s == HIGH) ? on : off);
+    }
+    inline bool is_invers(void) { return invers; }
 };
 
 class avgDHT
@@ -140,7 +156,8 @@ public:
     {
         add_data(s->get_temp());
     }
-    void update_display(float v) {
+    void update_display(float v)
+    {
         temp_meter->set_val(v);
     }
 };
@@ -152,11 +169,11 @@ public:
 
     void update_data(myDHT *s) override
     {
-//        log_msg("hum upd.");
         add_data(s->get_hum());
     }
 
-    void update_display(float v) {
+    void update_display(float v)
+    {
         hum_meter->set_val(v);
     }
 };

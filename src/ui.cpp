@@ -2,40 +2,84 @@
 #include "ui.h"
 #include "circuits.h"
 
-uiElements::uiElements() {
-	extern const lv_img_dsc_t splash_screen;
+// globals
+analogMeter *temp_meter;
+analogMeter *hum_meter;
 
-	tab_view = lv_tabview_create(lv_scr_act(), NULL);
-	tab_status = lv_tabview_add_tab(tab_view, "Status");
-	tab_controls = lv_tabview_add_tab(tab_view, "Controls");
-	tab_settings = lv_tabview_add_tab(tab_view, "Config");
+uiElements::uiElements(int idle_time) : saver(this, idle_time)
+{
+    extern const lv_img_dsc_t splash_screen;
 
-	/* tab 1 - Status */
-	temp_meter = new analogMeter(tab_status, "Temperatur", ctrl_temprange, "C");
+    modes[UI_SPLASH] = lv_obj_create(NULL, NULL);
+    /* splash */
+    set_mode(UI_SPLASH);
+    lv_obj_t *icon = lv_img_create(modes[UI_SPLASH], NULL);
+    lv_img_set_src(icon, &splash_screen);
+    lv_obj_align(icon, modes[UI_SPLASH], LV_ALIGN_CENTER, 0, 0);
+
+    lv_task_handler(); // let the splash screen appear
+
+    modes[UI_OPERATIONAL] = lv_obj_create(NULL, NULL);
+    modes[UI_SCREENSAVER] = lv_obj_create(NULL, NULL);
+
+    tab_view = lv_tabview_create(modes[UI_OPERATIONAL], NULL);
+    tab_status = lv_tabview_add_tab(tab_view, "Status");
+    tab_controls = lv_tabview_add_tab(tab_view, "Controls");
+    tab_settings = lv_tabview_add_tab(tab_view, "Config");
+
+    /* tab 1 - Status */
+    temp_meter = new analogMeter(tab_status, "Temperatur", ctrl_temprange, "C");
     add_status(temp_meter->get_area());
 
-	hum_meter = new analogMeter(tab_status, "Feuchtigkeit", ctrl_humrange, "\%");
+    hum_meter = new analogMeter(tab_status, "Feuchtigkeit", ctrl_humrange, "\%");
     add_status(hum_meter->get_area());
 
-	/* tab 2 - Controls */
-	lv_obj_t *icon = lv_img_create(tab_controls, NULL);
-	lv_img_set_src(icon, &splash_screen);
+    time_widget = lv_label_create(tab_controls, NULL);
+    lv_label_set_text(time_widget, "Time: ");
+    add_control(time_widget);
+    load_widget = lv_label_create(tab_controls, NULL);
+    lv_label_set_text(load_widget, "Load: ");
+    add_control(load_widget);
+
+    /* update screensaver, status widgets periodically per 1s */
+    lv_task_create(update_task, 1000, LV_TASK_PRIO_LOWEST, this);
 }
 
-void uiElements::add_status(lv_obj_t *e) {
+void uiElements::add_status(lv_obj_t *e)
+{
     lv_obj_align(e, tab_status, LV_ALIGN_IN_TOP_MID, stat_x, stat_y);
     stat_y += lv_obj_get_height(e);
 }
 
-void uiElements::add_control(lv_obj_t *e) {
-    lv_obj_align(e, tab_controls, LV_ALIGN_IN_TOP_MID, ctrl_x, ctrl_y);
+void uiElements::add_control(lv_obj_t *e)
+{
+    lv_obj_align(e, tab_controls, LV_ALIGN_IN_TOP_LEFT, ctrl_x, ctrl_y);
     ctrl_y += lv_obj_get_height(e);
 }
 
-void uiElements::add_setting(lv_obj_t *e) {
+void uiElements::add_setting(lv_obj_t *e)
+{
     lv_obj_align(e, tab_settings, LV_ALIGN_IN_TOP_MID, setgs_x, setgs_y);
     setgs_y += lv_obj_get_height(e);
 }
+
+void uiElements::update_task(lv_task_t *ta) {
+    uiElements *ui = static_cast<uiElements *>(ta->user_data);
+    ui->update();
+}
+
+void uiElements::update() { 
+    struct tm t;
+    static char buf[64];
+    saver.update();
+    // update time widget 
+    time_obj->get_time(&t);
+    strftime(buf, 64, "Time: %a, %b %d %Y %H:%M:%S", &t);
+    lv_label_set_text(time_widget, buf);
+    // update load_widget
+    snprintf(buf, 64, "Load: %d%%", 100 - lv_task_get_idle());
+    lv_label_set_text(load_widget, buf);
+};
 
 static tiny_hash_c<lv_obj_t *, button_label_c *> button_callbacks(10);
 static void button_cb_wrapper(lv_obj_t *obj, lv_event_t e)
@@ -43,7 +87,7 @@ static void button_cb_wrapper(lv_obj_t *obj, lv_event_t e)
     button_callbacks.retrieve(obj)->cb(e);
 }
 
-button_label_c::button_label_c(lv_obj_t* parent, genCircuit *c, const char *l, int w, int h, lv_align_t alignment)
+button_label_c::button_label_c(lv_obj_t *parent, genCircuit *c, const char *l, int w, int h, lv_align_t alignment)
     : label_text(l)
 {
     area = lv_obj_create(parent, NULL);
@@ -65,7 +109,7 @@ void button_label_c::cb(lv_event_t e)
     if (e == LV_EVENT_VALUE_CHANGED)
     {
         printf("%s: %s\n", label_text, lv_switch_get_state(obj) ? "On" : "Off");
-        circuit->io_set(lv_switch_get_state(obj) ? HIGH : LOW);
+        circuit->io_set((lv_switch_get_state(obj) ? HIGH : LOW), true); /* force HIGH/LOW without invers */
     }
 }
 
@@ -94,7 +138,7 @@ slider_label_c::slider_label_c(lv_obj_t *parent, genCircuit *c, const char *l, m
     label = lv_label_create(area, NULL);
     lv_label_set_text(label, label_text);
     lv_obj_align(label, area, LV_ALIGN_IN_TOP_LEFT, 5, 10);
- //   lv_obj_set_style_local_text_font(label, 0, LV_STATE_DEFAULT, &lv_font_montserrat_20);
+    //   lv_obj_set_style_local_text_font(label, 0, LV_STATE_DEFAULT, &lv_font_montserrat_20);
 
     /* slider */
     slider = lv_slider_create(area, NULL);
@@ -129,7 +173,7 @@ void slider_label_c::cb(lv_event_t e)
     if (e == LV_EVENT_VALUE_CHANGED)
     {
         myRange<float> &r = circuit->get_range();
-        static char buf[10]; 
+        static char buf[10];
         snprintf(buf, 6, "%.2f", static_cast<float>(lv_slider_get_value(slider)) / 100);
         lv_label_set_text(slider_up_label, buf);
         r.set_ubound(static_cast<float>(lv_slider_get_value(slider)) / 100);
@@ -178,6 +222,32 @@ analogMeter::analogMeter(lv_obj_t *tab, const char *n, myRange<float> r, const c
     temp_label = lv_label_create(lmeter, NULL);
     set_act();
     lv_obj_align(temp_label, lmeter, LV_ALIGN_CENTER, 0, 0);
+}
+
+void uiScreensaver::update()
+{
+    uint32_t act = lv_disp_get_inactive_time(lv_disp_get_default());
+    if (act < idle_time)
+    {
+        if (ui->get_mode() != UI_OPERATIONAL)
+        {
+            digitalWrite(TFT_LED, LOW);
+            ui->set_mode(UI_OPERATIONAL);
+            glob_delay = 5;
+        }
+        return;
+    }
+    if (act < (idle_time + 10 * 1000))      /* show splash screen for 10 secs */
+    {
+        if (ui->get_mode() != UI_SPLASH)
+            ui->set_mode(UI_SPLASH);
+        return;
+    }
+    if (ui->get_mode() != UI_SCREENSAVER) {
+        ui->set_mode(UI_SCREENSAVER);
+        digitalWrite(TFT_LED, HIGH);
+        glob_delay = 250;
+    }
 }
 
 /* helpers */

@@ -19,18 +19,18 @@ template <typename T>
 class myRange;
 class uiElements;
 class genCircuit;
+class uiScreensaver;
 
 /* prototypes */
 #define TFT_LED 15
 void init_lvgl(void);
-uiElements *setup_ui(void);
+uiElements *setup_ui(const int to);
 void log_msg(const char *s);
 void log_msg(const String s);
 extern lv_obj_t *log_handle;
-extern myRange<float> def_temprange;
-extern myRange<float> def_humrange;
 extern myRange<float> ctrl_temprange;
 extern myRange<float> ctrl_humrange;
+extern int glob_delay;
 
 void setup_wifi(void);
 void loop_wifi(void);
@@ -40,21 +40,37 @@ class myRange; // forward declaration
 
 typedef enum
 {
-    UI_STATUS,
-    UI_CONTROLS,
-    UI_SETTINGS
-} ui_elements_t;
+    UI_SPLASH = 0,
+    UI_OPERATIONAL,
+    UI_SCREENSAVER
+} ui_modes_t;
+
+class uiScreensaver
+{
+    uiElements *ui;
+    int idle_time; /* in ms */
+    ui_modes_t mode;
+public:
+    uiScreensaver(uiElements *u, int s = 2 * 60, ui_modes_t m = UI_OPERATIONAL) : ui(u), idle_time(s * 1000), mode(m) {}
+    ~uiScreensaver() = default;
+
+    void update();
+};
 
 class uiElements
 {
     lv_obj_t *tab_view;
     lv_obj_t *tab_status, *tab_controls, *tab_settings;
+    lv_obj_t *modes[3];
     int stat_x = 0, stat_y = 0;
     int ctrl_x = 0, ctrl_y = 0;
     int setgs_x = 0, setgs_y = 0;
-
+    ui_modes_t act_mode;
+    uiScreensaver saver;
+    lv_obj_t *time_widget;
+    lv_obj_t *load_widget;
 public:
-    uiElements();
+    uiElements(int idle_time);
     ~uiElements() = default;
 
     inline lv_obj_t *get_status() { return tab_status; }
@@ -64,6 +80,12 @@ public:
     void add_status(lv_obj_t *e);
     void add_control(lv_obj_t *e);
     void add_setting(lv_obj_t *e);
+
+    inline void set_mode(ui_modes_t m) { act_mode = m; lv_scr_load(modes[m]); }
+    inline ui_modes_t get_mode(void) { return act_mode; }
+
+    static void update_task(lv_task_t *t);
+    void update(void);
 };
 
 class uiCommons

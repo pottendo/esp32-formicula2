@@ -3,12 +3,7 @@
 #include "io.h"
 
 /* Temperature & Humidity */
-void tempTask(void *pvParameters);
-/**
- * triggerGetTemp
- * Sets flag dhtUpdated to true for handling in loop()
- * called by Ticker getTempTimer
- */
+
 static void triggerGetTemp(lv_task_t *t)
 {
     //  t->resume();
@@ -31,7 +26,6 @@ myDHT::myDHT(int p, DHTesp::DHT_MODEL_t m)
 
 void myDHT::update_data(void)
 {
-    
     TempAndHumidity newValues = dht_obj.getTempAndHumidity();
     if (dht_obj.getStatus() != 0)
     {
