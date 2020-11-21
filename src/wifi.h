@@ -31,9 +31,9 @@ public:
     inline bool get_time(struct tm *t)
     {
         bool res;
-        P(mutex);
+        //P(mutex);
         res = getLocalTime(t);
-        V(mutex);
+        //V(mutex);
         return res;
     }
 };

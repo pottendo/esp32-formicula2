@@ -35,9 +35,12 @@ public:
         ui->add_control((button =
                              new button_label_c(ui->get_controls(), this, circuit_name.c_str(), 230, 48, LV_ALIGN_IN_TOP_LEFT))
                             ->get_area());
-        ui->add_setting((slider =
-                             new slider_label_c(ui->get_settings(), this, circuit_name.c_str(), ctrl_temprange, dr, 230, 64, LV_ALIGN_IN_BOTTOM_LEFT))
-                            ->get_area());
+        if (sensor.get_type() == REAL_SENSOR)
+        {
+            ui->add_setting((slider =
+                                 new slider_label_c(ui->get_settings(), this, circuit_name.c_str(), ctrl_temprange, dr, 230, 64, LV_ALIGN_IN_BOTTOM_LEFT))
+                                ->get_area());
+        }
 
         circuit_task = lv_task_create(myCircuit::update_circuit, static_cast<uint32_t>(period * 1000), LV_TASK_PRIO_LOW, this);
         if (!circuit_task)
@@ -74,7 +77,8 @@ public:
         if (duty_cycle.is_in(t))
         {
             /* we're on duty */
-            if (sensor.get_type() == JUST_SWITCH) {
+            if (sensor.get_type() == JUST_SWITCH)
+            {
                 log_msg(circuit_name + range.to_string() + " switching on - " + String(io.state()));
                 io.set(HIGH, true); // force switching on
                 button->set(io.state());
@@ -84,7 +88,7 @@ public:
             if (range.is_in(v1))
             {
                 log_msg(circuit_name + range.to_string() + ": val=" + String(v1) + "...nothing to do.");
-//                io.toggle();
+                //                io.toggle();
                 button->set(io.state());
                 return;
             }
@@ -103,7 +107,7 @@ public:
         }
         else
         {
-            io_set(LOW, true);  // force off if circuit is not on duty
+            io_set(LOW, true); // force off if circuit is not on duty
             button->set(io.state());
             log_msg(circuit_name + " - not on duty, switching off");
         }
@@ -113,7 +117,7 @@ public:
     {
         return circuit_name + ": duty" + duty_cycle.to_string() +
                ", range" + range.to_string() +
-               ", cycle: " + period + "s" + 
+               ", cycle: " + period + "s" +
                (io.is_invers() ? ", invers logic" : "");
     }
 };

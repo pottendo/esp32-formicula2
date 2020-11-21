@@ -5,8 +5,8 @@
 #include "circuits.h"
 
 /* some globals */
-myRange<float> ctrl_temprange{22.0, 30.0};
-myRange<float> ctrl_humrange{60.0, 99.99};
+myRange<float> ctrl_temprange{19.0, 31.0};
+myRange<float> ctrl_humrange{50.0, 99.99};
 const int ui_ss_timeout = 30; /* screensaver timeout in s */
 int glob_delay = 10;
 
@@ -15,15 +15,15 @@ static myDHT *th1, *th2;
 static tempSensor *tsensor;
 static humSensor *hsensor;
 static timeSwitch *tswitch;
-static ioSwitch *io_halogen, *io_infrared, *io_fan, *io_fog, *io_spare1, *io_spare2;
-static myCircuit<tempSensor> *circuit_halogen;
-static myCircuit<timeSwitch> *circuit_infrared;
+static ioSwitch *io_tswitch, *io_infrared, *io_fan, *io_fog, *io_spare1, *io_spare2;
+static myCircuit<timeSwitch> *circuit_timeswitch;
+static myCircuit<tempSensor> *circuit_infrared;
 static myCircuit<humSensor> *circuit_fan;
 static myCircuit<humSensor> *circuit_fog;
 //static myCircuit<humSensor> *circuit_spare1;
 //static myCircuit<tempSensor> *circuit_spare2;
 static const char *circuit_names[] = {
-    "Halogen",
+    "Zeitschalter",
     "Infrared",
     "Fan",
     "Fog",
@@ -38,26 +38,26 @@ void setup()
     init_lvgl();
     ui = setup_ui(ui_ss_timeout);
     setup_wifi();
-    th1 = new myDHT(17, ui);
-    th2 = new myDHT(13, ui);
+    th1 = new myDHT("Berg", 17, ui);
+    th2 = new myDHT("Erde", 13, ui);
     tsensor = new tempSensor(std::list<myDHT *>{th1, th2});
     hsensor = new humSensor(std::list<myDHT *>{th1, th2});
     tswitch = new timeSwitch();
 
-    io_halogen = new ioSwitch(27);
+    io_tswitch = new ioSwitch(27);
     io_infrared = new ioSwitch(12);
     io_fan = new ioSwitch(16, true); // inverse logic for fan
     io_fog = new ioSwitch(32);
     io_spare1 = new ioSwitch(26);
     io_spare2 = new ioSwitch(25);
 
-    circuit_halogen =
-        new myCircuit<tempSensor>(ui, String(circuit_names[0]), *tsensor, *io_halogen,
+    circuit_timeswitch =
+        new myCircuit<timeSwitch>(ui, String(circuit_names[0]), *tswitch, *io_tswitch,
                                   5,
-                                  myRange<float>{26.0, 28.0}, ctrl_temprange,
-                                  myRange<struct tm>{{0, 0, 7}, {0, 0, 23}});
+                                  myRange<float>{0.0, 0.0}, ctrl_temprange,
+                                  myRange<struct tm>{{0, 0, 7}, {0, 0, 22}});
     circuit_infrared =
-        new myCircuit<timeSwitch>(ui, String(circuit_names[1]), *tswitch, *io_infrared,
+        new myCircuit<tempSensor>(ui, String(circuit_names[1]), *tsensor, *io_infrared,
                                   5,
                                   myRange<float>{24.0, 26.0}, ctrl_temprange);
     circuit_fan =

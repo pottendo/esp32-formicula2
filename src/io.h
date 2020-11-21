@@ -10,6 +10,7 @@ class avgDHT; /* forware declaration */
 class myDHT
 {
     DHTesp dht_obj;
+    const String name;
     int pin;
     uiElements *ui;
     DHTesp::DHT_MODEL_t model;
@@ -20,7 +21,7 @@ class myDHT
     lv_obj_t *ui_widget;
 
 public:
-    myDHT(int p, uiElements *ui, DHTesp::DHT_MODEL_t m = DHTesp::DHT22);
+    myDHT(String n, int p, uiElements *ui, DHTesp::DHT_MODEL_t m = DHTesp::DHT22);
     ~myDHT() = default;
 
     inline int get_pin(void) { return pin; }

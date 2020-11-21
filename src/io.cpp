@@ -11,8 +11,8 @@ static void triggerGetTemp(lv_task_t *t)
     obj->update_data();
 }
 
-myDHT::myDHT(int p, uiElements *u, DHTesp::DHT_MODEL_t m)
-    : pin(p), ui(u), model(m), temp(-500), hum(-99)
+myDHT::myDHT(String n, int p, uiElements *u, DHTesp::DHT_MODEL_t m)
+    : name(n), pin(p), ui(u), model(m), temp(-500), hum(-99)
 {
     dht_obj.setup(pin, m);
     mutex = xSemaphoreCreateMutex();
@@ -33,12 +33,12 @@ myDHT::myDHT(int p, uiElements *u, DHTesp::DHT_MODEL_t m)
 
 void myDHT::update_data(void)
 {
-    String s = String("DHT (") + get_pin() + ")";
+    String s = name;
     TempAndHumidity newValues = dht_obj.getTempAndHumidity();
     if (dht_obj.getStatus() != 0)
     {
-        log_msg(s + " - error status: " + String(dht_obj.getStatusString()));
-        s += "#ff0000  !INV! " + String(dht_obj.getStatusString()) + "#";
+        log_msg(s + "(" + get_pin() + ") - error status: " + String(dht_obj.getStatusString()));
+        s += "#ff0000  !!! " + String(dht_obj.getStatusString()) + "#";
         lv_label_set_text(ui_widget, s.c_str());
         return;
     }
