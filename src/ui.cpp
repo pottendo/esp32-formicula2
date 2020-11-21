@@ -9,6 +9,7 @@ analogMeter *hum_meter;
 uiElements::uiElements(int idle_time) : saver(this, idle_time)
 {
     extern const lv_img_dsc_t splash_screen;
+    extern const lv_img_dsc_t biohazard;
 
     modes[UI_SPLASH] = lv_obj_create(NULL, NULL);
     /* splash */
@@ -21,6 +22,11 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time)
 
     modes[UI_OPERATIONAL] = lv_obj_create(NULL, NULL);
     modes[UI_SCREENSAVER] = lv_obj_create(NULL, NULL);
+    modes[UI_ALARM] = lv_obj_create(NULL, NULL);
+
+    lv_obj_t *alarmpic = lv_img_create(modes[UI_ALARM], NULL);
+    lv_img_set_src(alarmpic, &biohazard);
+    lv_obj_align(alarmpic, modes[UI_ALARM], LV_ALIGN_CENTER, 0, 0);
 
     tab_view = lv_tabview_create(modes[UI_OPERATIONAL], NULL);
     tab_status = lv_tabview_add_tab(tab_view, "Status");
@@ -63,16 +69,18 @@ void uiElements::add_setting(lv_obj_t *e)
     setgs_y += lv_obj_get_height(e);
 }
 
-void uiElements::update_task(lv_task_t *ta) {
+void uiElements::update_task(lv_task_t *ta)
+{
     uiElements *ui = static_cast<uiElements *>(ta->user_data);
     ui->update();
 }
 
-void uiElements::update() { 
+void uiElements::update()
+{
     struct tm t;
     static char buf[64];
     saver.update();
-    // update time widget 
+    // update time widget
     time_obj->get_time(&t);
     strftime(buf, 64, "Time: %a, %b %d %Y %H:%M:%S", &t);
     lv_label_set_text(time_widget, buf);
@@ -237,13 +245,27 @@ void uiScreensaver::update()
         }
         return;
     }
-    if (act < (idle_time + 10 * 1000))      /* show splash screen for 10 secs */
+    if (act < (idle_time + 10 * 1000)) /* show splash screen for 10 secs */
     {
         if (ui->get_mode() != UI_SPLASH)
             ui->set_mode(UI_SPLASH);
         return;
     }
-    if (ui->get_mode() != UI_SCREENSAVER) {
+
+    if ((temp_meter->get_val() < ctrl_temprange.get_lbound()) ||
+        (temp_meter->get_val() > ctrl_temprange.get_ubound()) ||
+        (hum_meter->get_val() < ctrl_humrange.get_lbound()) ||
+        (hum_meter->get_val() > ctrl_humrange.get_ubound()))
+    {
+        int t = digitalRead(TFT_LED);
+        digitalWrite(TFT_LED, (t == HIGH) ? LOW : HIGH);
+        ui->set_mode(UI_ALARM);
+        glob_delay = 5;
+
+        return;
+    }
+    if (ui->get_mode() != UI_SCREENSAVER)
+    {
         ui->set_mode(UI_SCREENSAVER);
         digitalWrite(TFT_LED, HIGH);
         glob_delay = 250;

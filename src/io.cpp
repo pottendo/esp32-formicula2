@@ -11,8 +11,8 @@ static void triggerGetTemp(lv_task_t *t)
     obj->update_data();
 }
 
-myDHT::myDHT(int p, DHTesp::DHT_MODEL_t m)
-    : pin(p), model(m), temp(-500), hum(-99)
+myDHT::myDHT(int p, uiElements *u, DHTesp::DHT_MODEL_t m)
+    : pin(p), ui(u), model(m), temp(-500), hum(-99)
 {
     dht_obj.setup(pin, m);
     mutex = xSemaphoreCreateMutex();
@@ -22,14 +22,24 @@ myDHT::myDHT(int p, DHTesp::DHT_MODEL_t m)
     {
         log_msg("Failed to create taks for DHT sensor.");
     }
+
+    ui_widget = lv_label_create(ui->get_controls(), NULL);
+    char buf[8];
+    snprintf(buf, 8, "DHT(%d)", pin);
+    lv_label_set_text(ui_widget, buf);
+    lv_label_set_recolor(ui_widget, true);
+    ui->add_control(ui_widget);
 }
 
 void myDHT::update_data(void)
 {
+    String s = String("DHT (") + get_pin() + ")";
     TempAndHumidity newValues = dht_obj.getTempAndHumidity();
     if (dht_obj.getStatus() != 0)
     {
-        log_msg(String("DHT (") + get_pin() + ") error status: " + String(dht_obj.getStatusString()));
+        log_msg(s + " - error status: " + String(dht_obj.getStatusString()));
+        s += "#ff0000  !INV! " + String(dht_obj.getStatusString()) + "#";
+        lv_label_set_text(ui_widget, s.c_str());
         return;
     }
     P(mutex);
@@ -39,4 +49,6 @@ void myDHT::update_data(void)
     //log_msg(String("DHT(") + get_pin() + "): Temp = " + String(temp) + ", Hum = " + String(hum));
     std::for_each(parents.begin(), parents.end(),
                   [&](avgDHT *p) { p->update_data(this); });
+    s += " " + String(temp) + "C | " + String(hum) + '%';
+    lv_label_set_text(ui_widget, s.c_str());
 }

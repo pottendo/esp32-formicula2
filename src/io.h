@@ -11,14 +11,16 @@ class myDHT
 {
     DHTesp dht_obj;
     int pin;
+    uiElements *ui;
     DHTesp::DHT_MODEL_t model;
     float temp, hum;
     SemaphoreHandle_t mutex;
     lv_task_t *dht_io_task;
     std::list<avgDHT *> parents;
+    lv_obj_t *ui_widget;
 
 public:
-    myDHT(int p, DHTesp::DHT_MODEL_t m = DHTesp::DHT22);
+    myDHT(int p, uiElements *ui, DHTesp::DHT_MODEL_t m = DHTesp::DHT22);
     ~myDHT() = default;
 
     inline int get_pin(void) { return pin; }
@@ -80,14 +82,40 @@ public:
     const String &to_string(void)
     {
         int s = state();
-//        if (invers)
-//            return ((s == HIGH) ? off : on);
+        //        if (invers)
+        //            return ((s == HIGH) ? off : on);
         return ((s == HIGH) ? on : off);
     }
     inline bool is_invers(void) { return invers; }
 };
 
-class avgDHT
+typedef enum
+{
+    REAL_SENSOR,
+    JUST_SWITCH
+} sens_type_t;
+
+class genSensor
+{
+    const sens_type_t type;
+
+public:
+    genSensor(const sens_type_t t = REAL_SENSOR) : type(t) {}
+    ~genSensor() = default;
+
+    sens_type_t get_type() { return type; }
+};
+
+class timeSwitch : public genSensor
+{
+public:
+    timeSwitch() : genSensor(JUST_SWITCH) {}
+    ~timeSwitch() = default;
+
+    float get_data(void) { return -1.0; }
+};
+
+class avgDHT : public genSensor
 {
 protected:
     static const int sample_no = 10;
@@ -98,7 +126,7 @@ protected:
     SemaphoreHandle_t mutex;
 
 public:
-    avgDHT(std::list<myDHT *> dhts, const char *n = "avgDHT", float def_val = 0.0) : act_ind(0), sensors(dhts), name(n)
+    avgDHT(const sens_type_t t, std::list<myDHT *> dhts, const char *n = "avgDHT", float def_val = 0.0) : genSensor(t), act_ind(0), sensors(dhts), name(n)
     {
         mutex = xSemaphoreCreateMutex();
         for_each(dhts.begin(), dhts.end(),
@@ -149,7 +177,7 @@ public:
 class tempSensor : public avgDHT
 {
 public:
-    tempSensor(std::list<myDHT *> dhts, const char *n = "TempSensor") : avgDHT(dhts, n, 23.0) {}
+    tempSensor(std::list<myDHT *> dhts, const char *n = "TempSensor") : avgDHT(REAL_SENSOR, dhts, n, 23.0) {}
     virtual ~tempSensor() = default;
 
     void update_data(myDHT *s) override
@@ -164,7 +192,7 @@ public:
 class humSensor : public avgDHT
 {
 public:
-    humSensor(std::list<myDHT *> dhts, const char *n = "HumSensor") : avgDHT(dhts, n, 55.5) {}
+    humSensor(std::list<myDHT *> dhts, const char *n = "HumSensor") : avgDHT(REAL_SENSOR, dhts, n, 55.5) {}
     virtual ~humSensor() = default;
 
     void update_data(myDHT *s) override

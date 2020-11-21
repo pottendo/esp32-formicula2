@@ -74,6 +74,12 @@ public:
         if (duty_cycle.is_in(t))
         {
             /* we're on duty */
+            if (sensor.get_type() == JUST_SWITCH) {
+                log_msg(circuit_name + range.to_string() + " switching on - " + String(io.state()));
+                io.set(HIGH, true); // force switching on
+                button->set(io.state());
+                return;
+            }
             float v1 = sensor.get_data();
             if (range.is_in(v1))
             {
@@ -97,7 +103,9 @@ public:
         }
         else
         {
-            log_msg(circuit_name + " - not on duty.");
+            io_set(LOW, true);  // force off if circuit is not on duty
+            button->set(io.state());
+            log_msg(circuit_name + " - not on duty, switching off");
         }
     }
 

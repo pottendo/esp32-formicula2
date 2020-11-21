@@ -42,7 +42,8 @@ typedef enum
 {
     UI_SPLASH = 0,
     UI_OPERATIONAL,
-    UI_SCREENSAVER
+    UI_SCREENSAVER,
+    UI_ALARM
 } ui_modes_t;
 
 class uiScreensaver
@@ -61,7 +62,7 @@ class uiElements
 {
     lv_obj_t *tab_view;
     lv_obj_t *tab_status, *tab_controls, *tab_settings;
-    lv_obj_t *modes[3];
+    lv_obj_t *modes[4];
     int stat_x = 0, stat_y = 0;
     int ctrl_x = 0, ctrl_y = 0;
     int setgs_x = 0, setgs_y = 0;
@@ -157,6 +158,8 @@ public:
                               static_cast<int>(static_cast<float>((float)val - static_cast<int>(val)) * 100) % 100);
         lv_linemeter_set_value(lmeter, val);
     }
+
+    inline float get_val() { return val; }
 };
 
 extern analogMeter *temp_meter;

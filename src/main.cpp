@@ -14,9 +14,10 @@ int glob_delay = 10;
 static myDHT *th1, *th2;
 static tempSensor *tsensor;
 static humSensor *hsensor;
+static timeSwitch *tswitch;
 static ioSwitch *io_halogen, *io_infrared, *io_fan, *io_fog, *io_spare1, *io_spare2;
 static myCircuit<tempSensor> *circuit_halogen;
-static myCircuit<tempSensor> *circuit_infrared;
+static myCircuit<timeSwitch> *circuit_infrared;
 static myCircuit<humSensor> *circuit_fan;
 static myCircuit<humSensor> *circuit_fog;
 //static myCircuit<humSensor> *circuit_spare1;
@@ -37,10 +38,12 @@ void setup()
     init_lvgl();
     ui = setup_ui(ui_ss_timeout);
     setup_wifi();
-    th1 = new myDHT(17);
-    th2 = new myDHT(13);
+    th1 = new myDHT(17, ui);
+    th2 = new myDHT(13, ui);
     tsensor = new tempSensor(std::list<myDHT *>{th1, th2});
     hsensor = new humSensor(std::list<myDHT *>{th1, th2});
+    tswitch = new timeSwitch();
+
     io_halogen = new ioSwitch(27);
     io_infrared = new ioSwitch(12);
     io_fan = new ioSwitch(16, true); // inverse logic for fan
@@ -54,7 +57,7 @@ void setup()
                                   myRange<float>{26.0, 28.0}, ctrl_temprange,
                                   myRange<struct tm>{{0, 0, 7}, {0, 0, 23}});
     circuit_infrared =
-        new myCircuit<tempSensor>(ui, String(circuit_names[1]), *tsensor, *io_infrared,
+        new myCircuit<timeSwitch>(ui, String(circuit_names[1]), *tswitch, *io_infrared,
                                   5,
                                   myRange<float>{24.0, 26.0}, ctrl_temprange);
     circuit_fan =
