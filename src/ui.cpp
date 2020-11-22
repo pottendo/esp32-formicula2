@@ -95,6 +95,12 @@ static void button_cb_wrapper(lv_obj_t *obj, lv_event_t e)
     button_callbacks.retrieve(obj)->cb(e);
 }
 
+tiny_hash_c<lv_obj_t *, rangeSpinbox<myRange<struct tm>> *> spinbox_callbacks{6};
+void spinbox_cb_wrapper(lv_obj_t *obj, lv_event_t e)
+{
+    spinbox_callbacks.retrieve(obj)->cb(obj, e);
+}
+
 button_label_c::button_label_c(lv_obj_t *parent, genCircuit *c, const char *l, int w, int h, lv_align_t alignment)
     : label_text(l)
 {
@@ -145,7 +151,7 @@ slider_label_c::slider_label_c(lv_obj_t *parent, genCircuit *c, const char *l, m
     /* slider label */
     label = lv_label_create(area, NULL);
     lv_label_set_text(label, label_text);
-    lv_obj_align(label, area, LV_ALIGN_IN_TOP_LEFT, 5, 10);
+    lv_obj_align(label, area, LV_ALIGN_IN_TOP_LEFT, 5, 5);
     //   lv_obj_set_style_local_text_font(label, 0, LV_STATE_DEFAULT, &lv_font_montserrat_20);
 
     /* slider */
@@ -167,13 +173,13 @@ slider_label_c::slider_label_c(lv_obj_t *parent, genCircuit *c, const char *l, m
     snprintf(b, 6, "%.2f", r.get_ubound());
     lv_label_set_text(slider_up_label, b);
     lv_obj_set_auto_realign(slider_up_label, true);
-    lv_obj_align(slider_up_label, slider, LV_ALIGN_OUT_BOTTOM_RIGHT, 0, 8);
+    lv_obj_align(slider_up_label, slider, LV_ALIGN_OUT_BOTTOM_RIGHT, 0, 5);
 
     slider_down_label = lv_label_create(area, NULL);
     snprintf(b, 6, "%.2f", r.get_lbound());
     lv_label_set_text(slider_down_label, b);
     lv_obj_set_auto_realign(slider_down_label, true);
-    lv_obj_align(slider_down_label, slider, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 8);
+    lv_obj_align(slider_down_label, slider, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 5);
 }
 
 void slider_label_c::cb(lv_event_t e)
@@ -333,4 +339,27 @@ template <>
 bool myRange<float>::is_below(float &v)
 {
     return !(v >= lbound);
+}
+
+template <>
+float myRange<struct tm>::to_float(const struct tm &v)
+{
+    float res = v.tm_hour + (100.0 / 60.0) * v.tm_min;
+    //printf("%d:%d = %.02f\n", v.tm_hour, v.tm_min, res);
+    return res;
+}
+template <>
+void myRange<struct tm>::set_lbound(const int v)
+{
+    lbound.tm_hour = v / 100;
+    lbound.tm_min = (v % 100) * 0.6;
+    //printf("setting lbound %d:%d\n", lbound.tm_hour, lbound.tm_min);
+}
+
+template <>
+void myRange<struct tm>::set_ubound(const int v)
+{
+    ubound.tm_hour = v / 100;
+    ubound.tm_min = (v % 100) * 0.6;
+    //printf("setting lbound %d:%d\n", ubound.tm_hour, ubound.tm_min);
 }

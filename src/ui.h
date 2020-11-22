@@ -38,6 +38,12 @@ void loop_wifi(void);
 template <typename T>
 class myRange; // forward declaration
 
+template <typename T, typename I>
+class tiny_hash_c; // forward declaration
+
+template <typename T>
+class rangeSpinbox;
+
 typedef enum
 {
     UI_SPLASH = 0,
@@ -51,6 +57,7 @@ class uiScreensaver
     uiElements *ui;
     int idle_time; /* in ms */
     ui_modes_t mode;
+
 public:
     uiScreensaver(uiElements *u, int s = 2 * 60, ui_modes_t m = UI_OPERATIONAL) : ui(u), idle_time(s * 1000), mode(m) {}
     ~uiScreensaver() = default;
@@ -70,6 +77,7 @@ class uiElements
     uiScreensaver saver;
     lv_obj_t *time_widget;
     lv_obj_t *load_widget;
+
 public:
     uiElements(int idle_time);
     ~uiElements() = default;
@@ -82,7 +90,11 @@ public:
     void add_control(lv_obj_t *e);
     void add_setting(lv_obj_t *e);
 
-    inline void set_mode(ui_modes_t m) { act_mode = m; lv_scr_load(modes[m]); }
+    inline void set_mode(ui_modes_t m)
+    {
+        act_mode = m;
+        lv_scr_load(modes[m]);
+    }
     inline ui_modes_t get_mode(void) { return act_mode; }
 
     static void update_task(lv_task_t *t);
@@ -180,7 +192,11 @@ class tiny_hash_c
     pair **items;
 
 public:
-    tiny_hash_c(size_t s) { items = (struct pair **)malloc(sizeof(struct pair *) * s); }
+    tiny_hash_c(size_t s) : top(0)
+    {
+        items = (struct pair **)malloc(sizeof(struct pair *) * s);
+        //        printf("hash %p with %d items created.\n", this, s);
+    }
     ~tiny_hash_c()
     {
         for (int x = 0; x < top; x++)
@@ -190,18 +206,25 @@ public:
         free(items);
     }
 
-    inline void store(T x, I y) { items[top++] = new pair(x, y); }
+    inline void store(T x, I y)
+    {
+        items[top++] = new pair(x, y);
+        //printf("hash %p(%d) stores value for %p\n", this, top, x);
+    }
     I retrieve(T a)
     {
+        //printf("hash %p(%d) - looking up '%p'...", this, top, a);
         for (int x = 0; x < top; x++)
         {
+            //printf(" %p", items[x]->a);
             if (items[x]->a == a)
             {
+                //printf("\n");
                 return items[x]->b;
             }
         }
         /* never reach */
-        printf("hash not found... *PANIC*\n"); /* hopefully we panic here */
+        printf("\nhash not found... *PANIC*\n"); /* hopefully we panic here */
         return items[999]->b;
     }
 };
@@ -219,6 +242,8 @@ public:
     inline T get_ubound() { return ubound; }
     inline void set_lbound(T v) { lbound = v; }
     inline void set_ubound(T v) { ubound = v; }
+    inline void set_lbound(const int v);
+    inline void set_ubound(const int v);
 
     bool is_above(T &v);
     bool is_below(T &v);
@@ -237,6 +262,119 @@ public:
         return true;
     }
     const String to_string();
+    float to_float(const T &v);
+};
+
+extern tiny_hash_c<lv_obj_t *, rangeSpinbox<myRange<struct tm>> *> spinbox_callbacks;
+extern void spinbox_cb_wrapper(lv_obj_t *obj, lv_event_t e);
+
+template <typename T>
+class rangeSpinbox : public uiCommons
+{
+    const char *label;
+    T &range;
+    tiny_hash_c<lv_obj_t *, int> btype{6};
+    lv_obj_t *spinbox_lower, *spinbox_upper;
+
+public:
+    rangeSpinbox(lv_obj_t *tab, const char *n, T &r, int w, int h) : label(n), range(r)
+    {
+        area = lv_obj_create(tab, NULL);
+        lv_obj_set_size(area, w, h);
+        lv_obj_t *l = lv_label_create(area, NULL);
+        lv_label_set_text(l, label);
+        lv_obj_align(l, area, LV_ALIGN_IN_LEFT_MID, 0, 0);
+
+        /* start of range */
+        lv_obj_t *spinbox = lv_spinbox_create(area, NULL);
+        spinbox_lower = spinbox;
+        lv_spinbox_set_range(spinbox, 0, 24 * 100);
+        lv_spinbox_set_digit_format(spinbox, 4, 2);
+        //lv_spinbox_step_prev(spinbox);
+        lv_spinbox_set_step(spinbox, 25);
+        lv_spinbox_set_value(spinbox, range.to_float(range.get_lbound()) * 100);
+        lv_obj_set_width(spinbox, 60);
+        lv_obj_align(spinbox, area, LV_ALIGN_IN_TOP_RIGHT, -38, 2);
+
+        lv_coord_t sh = lv_obj_get_height(spinbox);
+        lv_obj_t *btn = lv_btn_create(area, NULL);
+        lv_obj_set_size(btn, sh, sh);
+        lv_obj_align(btn, spinbox, LV_ALIGN_OUT_RIGHT_MID, 5, 0);
+        lv_theme_apply(btn, LV_THEME_SPINBOX_BTN);
+        lv_obj_set_style_local_value_str(btn, LV_BTN_PART_MAIN, LV_STATE_DEFAULT, LV_SYMBOL_PLUS);
+        lv_obj_set_event_cb(btn, spinbox_cb_wrapper);
+        spinbox_callbacks.store(btn, this);
+        btype.store(btn, 0);
+
+        btn = lv_btn_create(area, btn);
+        lv_obj_align(btn, spinbox, LV_ALIGN_OUT_LEFT_MID, -5, 0);
+        lv_obj_set_event_cb(btn, spinbox_cb_wrapper);
+        lv_obj_set_style_local_value_str(btn, LV_BTN_PART_MAIN, LV_STATE_DEFAULT, LV_SYMBOL_MINUS);
+        spinbox_callbacks.store(btn, this);
+        btype.store(btn, 1);
+
+        /* end of range */
+        spinbox_upper = spinbox = lv_spinbox_create(area, NULL);
+//        lv_spinbox_set_range(spinbox, range.to_float(range.get_lbound()) * 100, range.to_float(range.get_ubound()) * 100);
+        lv_spinbox_set_range(spinbox, 0, 24 * 100);
+        lv_spinbox_set_digit_format(spinbox, 4, 2);
+        //lv_spinbox_step_prev(spinbox);
+        lv_spinbox_set_step(spinbox, 25);
+        lv_spinbox_set_value(spinbox, range.to_float(range.get_ubound()) * 100);
+        lv_obj_set_width(spinbox, 60);
+        lv_obj_align(spinbox, spinbox_lower, LV_ALIGN_OUT_BOTTOM_MID, 0, 2);
+
+        sh = lv_obj_get_height(spinbox);
+        btn = lv_btn_create(area, NULL);
+        lv_obj_set_size(btn, sh, sh);
+        lv_obj_align(btn, spinbox, LV_ALIGN_OUT_RIGHT_MID, 5, 0);
+        lv_theme_apply(btn, LV_THEME_SPINBOX_BTN);
+        lv_obj_set_style_local_value_str(btn, LV_BTN_PART_MAIN, LV_STATE_DEFAULT, LV_SYMBOL_PLUS);
+        lv_obj_set_event_cb(btn, spinbox_cb_wrapper);
+        spinbox_callbacks.store(btn, this);
+        btype.store(btn, 2);
+
+        btn = lv_btn_create(area, btn);
+        lv_obj_align(btn, spinbox, LV_ALIGN_OUT_LEFT_MID, -5, 0);
+        lv_obj_set_event_cb(btn, spinbox_cb_wrapper);
+        lv_obj_set_style_local_value_str(btn, LV_BTN_PART_MAIN, LV_STATE_DEFAULT, LV_SYMBOL_MINUS);
+        spinbox_callbacks.store(btn, this);
+        btype.store(btn, 3);
+    }
+    ~rangeSpinbox() = default;
+
+    void cb(lv_obj_t *o, lv_event_t e)
+    {
+        int v;
+        if (e == LV_EVENT_SHORT_CLICKED || e == LV_EVENT_LONG_PRESSED_REPEAT)
+        {
+            switch (btype.retrieve(o))
+            {
+            case 0:
+                lv_spinbox_increment(spinbox_lower);
+                v = lv_spinbox_get_value(spinbox_lower);
+                range.set_lbound(v);
+                break;
+            case 1:
+                lv_spinbox_decrement(spinbox_lower);
+                v = lv_spinbox_get_value(spinbox_lower);
+                range.set_lbound(v);
+                break;
+            case 2:
+                lv_spinbox_increment(spinbox_upper);
+                v = lv_spinbox_get_value(spinbox_upper);
+                range.set_ubound(v);
+                break;
+            case 3:
+                lv_spinbox_decrement(spinbox_upper);
+                v = lv_spinbox_get_value(spinbox_upper);
+                range.set_ubound(v);
+                break;
+            default:
+                break;
+            }
+        }
+    }
 };
 
 template <typename T>

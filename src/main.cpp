@@ -24,9 +24,9 @@ static myCircuit<humSensor> *circuit_fog;
 //static myCircuit<tempSensor> *circuit_spare2;
 static const char *circuit_names[] = {
     "Zeitschalter",
-    "Infrared",
-    "Fan",
-    "Fog",
+    "Infrarot",
+    "Luefter",
+    "Nebel",
     NULL};
 static uiElements *ui;
 
@@ -55,7 +55,7 @@ void setup()
         new myCircuit<timeSwitch>(ui, String(circuit_names[0]), *tswitch, *io_tswitch,
                                   5,
                                   myRange<float>{0.0, 0.0}, ctrl_temprange,
-                                  myRange<struct tm>{{0, 0, 7}, {0, 0, 22}});
+                                  *(new myRange<struct tm>{{0, 0, 7}, {0, 0, 22}}));
     circuit_infrared =
         new myCircuit<tempSensor>(ui, String(circuit_names[1]), *tsensor, *io_infrared,
                                   5,
