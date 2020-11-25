@@ -15,6 +15,11 @@
 #define V(seM)
 #endif
 
+#define TFT_LED 15
+
+/* #define ALARM_SOUND */
+#define BUZZER_PIN 21
+
 template <typename T>
 class myRange;
 class uiElements;
@@ -22,7 +27,6 @@ class genCircuit;
 class uiScreensaver;
 
 /* prototypes */
-#define TFT_LED 15
 void init_lvgl(void);
 uiElements *setup_ui(const int to);
 void log_msg(const char *s);
@@ -77,6 +81,7 @@ class uiElements
     uiScreensaver saver;
     lv_obj_t *time_widget;
     lv_obj_t *load_widget;
+    const int buzzer_channel = 0;
 
 public:
     uiElements(int idle_time);
@@ -99,6 +104,9 @@ public:
 
     static void update_task(lv_task_t *t);
     void update(void);
+#ifdef ALARM_SOUND
+    void biohazard_alarm(void);
+#endif
 };
 
 class uiCommons
@@ -295,6 +303,7 @@ public:
         lv_spinbox_set_value(spinbox, range.to_float(range.get_lbound()) * 100);
         lv_obj_set_width(spinbox, 60);
         lv_obj_align(spinbox, area, LV_ALIGN_IN_TOP_RIGHT, -38, 2);
+        lv_textarea_set_cursor_hidden(spinbox, true);
 
         lv_coord_t sh = lv_obj_get_height(spinbox);
         lv_obj_t *btn = lv_btn_create(area, NULL);
@@ -315,7 +324,6 @@ public:
 
         /* end of range */
         spinbox_upper = spinbox = lv_spinbox_create(area, NULL);
-//        lv_spinbox_set_range(spinbox, range.to_float(range.get_lbound()) * 100, range.to_float(range.get_ubound()) * 100);
         lv_spinbox_set_range(spinbox, 0, 24 * 100);
         lv_spinbox_set_digit_format(spinbox, 4, 2);
         //lv_spinbox_step_prev(spinbox);
@@ -323,6 +331,7 @@ public:
         lv_spinbox_set_value(spinbox, range.to_float(range.get_ubound()) * 100);
         lv_obj_set_width(spinbox, 60);
         lv_obj_align(spinbox, spinbox_lower, LV_ALIGN_OUT_BOTTOM_MID, 0, 2);
+        lv_textarea_set_cursor_hidden(spinbox, true);
 
         sh = lv_obj_get_height(spinbox);
         btn = lv_btn_create(area, NULL);

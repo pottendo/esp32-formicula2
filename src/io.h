@@ -178,7 +178,7 @@ public:
 class tempSensor : public avgDHT
 {
 public:
-    tempSensor(std::list<myDHT *> dhts, const char *n = "TempSensor") : avgDHT(REAL_SENSOR, dhts, n, 23.0) {}
+    tempSensor(std::list<myDHT *> dhts, const char *n = "TempSensor") : avgDHT(REAL_SENSOR, dhts, n, 5.0) {}
     virtual ~tempSensor() = default;
 
     void update_data(myDHT *s) override
@@ -193,7 +193,7 @@ public:
 class humSensor : public avgDHT
 {
 public:
-    humSensor(std::list<myDHT *> dhts, const char *n = "HumSensor") : avgDHT(REAL_SENSOR, dhts, n, 55.5) {}
+    humSensor(std::list<myDHT *> dhts, const char *n = "HumSensor") : avgDHT(REAL_SENSOR, dhts, n, 5.5) {}
     virtual ~humSensor() = default;
 
     void update_data(myDHT *s) override

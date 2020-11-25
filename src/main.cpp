@@ -75,8 +75,13 @@ void setup()
 #endif
 }
 
+
 void loop()
 {
     lv_task_handler(); // all tasks (incl. sensors) are managed by lvgl!
+#ifdef ALARM_SOUND
+    if (ui->get_mode() == UI_ALARM)
+        ui->biohazard_alarm();
+#endif
     delay(glob_delay);
 }

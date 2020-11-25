@@ -89,6 +89,61 @@ void uiElements::update()
     lv_label_set_text(load_widget, buf);
 };
 
+#ifdef ALARM_SOUND
+void uiElements::biohazard_alarm(void)
+{
+    static int mode = 0; /* 0 slow, 1 fast */
+    static int pitch = 400, delta;
+    static const int pitch_max = 4000, pitch_min = pitch_max / 10, d1 = 20;
+    static int count = 0, dir = 1;
+    static bool initialized = false;
+
+    if (act_mode != UI_ALARM)
+    {
+        if (initialized)
+        {
+            ledcWriteTone(buzzer_channel, 0);
+            initialized = false;
+            ledcDetachPin(BUZZER_PIN);
+        }
+        return;
+    }
+    /* setup Buzzer */
+    if (!initialized)
+    {
+        ledcSetup(buzzer_channel, 0, 8);
+        ledcAttachPin(BUZZER_PIN, buzzer_channel);
+        ledcWrite(buzzer_channel, 125); /* duty cycle ~50% */
+        initialized = true;
+    }
+
+    if (count < 6)
+    {
+        delta = d1 + d1 * (2 * mode);
+    }
+    else
+    {
+        count = 0;
+        mode = mode ? 0 : 1;
+    }
+    pitch = pitch + dir * delta;
+
+    if (pitch > pitch_max)
+    {
+        dir *= -1;
+        pitch = pitch_max;
+        count++;
+    }
+    if (pitch < pitch_min)
+    {
+        dir *= -1;
+        pitch = pitch_min;
+        count++;
+    }
+    ledcWriteTone(buzzer_channel, pitch);
+}
+#endif
+
 static tiny_hash_c<lv_obj_t *, button_label_c *> button_callbacks(10);
 static void button_cb_wrapper(lv_obj_t *obj, lv_event_t e)
 {
@@ -247,6 +302,9 @@ void uiScreensaver::update()
         {
             digitalWrite(TFT_LED, LOW);
             ui->set_mode(UI_OPERATIONAL);
+#ifdef ALARM_SOUND
+            ui->biohazard_alarm();
+#endif
             glob_delay = 5;
         }
         return;
