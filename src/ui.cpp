@@ -6,10 +6,13 @@
 analogMeter *temp_meter;
 analogMeter *hum_meter;
 
-uiElements::uiElements(int idle_time) : saver(this, idle_time)
+uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
 {
     extern const lv_img_dsc_t splash_screen;
     extern const lv_img_dsc_t biohazard;
+
+    mutex = xSemaphoreCreateMutex();
+    V(mutex);
 
     modes[UI_SPLASH] = lv_obj_create(NULL, NULL);
     /* splash */
@@ -30,14 +33,15 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time)
 
     tab_view = lv_tabview_create(modes[UI_OPERATIONAL], NULL);
     tab_status = lv_tabview_add_tab(tab_view, "Status");
-    tab_controls = lv_tabview_add_tab(tab_view, "Controls");
-    tab_settings = lv_tabview_add_tab(tab_view, "Config");
+    tab_controls = lv_tabview_add_tab(tab_view, "Ctrls");
+    tab_settings = lv_tabview_add_tab(tab_view, "Cfg");
+    tab_settings2 = lv_tabview_add_tab(tab_view, "Set");
 
     /* tab 1 - Status */
-    temp_meter = new analogMeter(tab_status, "Temperatur", ctrl_temprange, "C");
+    temp_meter = new analogMeter(tab_status, this, "Temperatur", ctrl_temprange, "C");
     add_status(temp_meter->get_area());
 
-    hum_meter = new analogMeter(tab_status, "Feuchtigkeit", ctrl_humrange, "\%");
+    hum_meter = new analogMeter(tab_status, this, "Feuchtigkeit", ctrl_humrange, "\%");
     add_status(hum_meter->get_area());
 
     time_widget = lv_label_create(tab_controls, NULL);
@@ -47,8 +51,22 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time)
     lv_label_set_text(load_widget, "Load: ");
     add_control(load_widget);
 
+    /* settings */
+    add_setting2((new settingsButton(tab_settings2, this, "Alarm Sound", do_sound, 230, 48))->get_area());
+    add_setting2((new settingsButton(tab_settings2, this, "Manuell", do_manual, 230, 48))->get_area());
+
     /* update screensaver, status widgets periodically per 1s */
     lv_task_create(update_task, 1000, LV_TASK_PRIO_LOWEST, this);
+
+    /* lvgl independent stuff */
+    TaskHandle_t handle;
+    xTaskCreate(ui_task_wrapper, "ui-task helper", 4000, this, configMAX_PRIORITIES - 1, &handle);
+}
+
+void uiElements::ui_task_wrapper(void *obj)
+{
+    uiElements *o = static_cast<uiElements *>(obj);
+    o->ui_task();
 }
 
 void uiElements::add_status(lv_obj_t *e)
@@ -67,6 +85,12 @@ void uiElements::add_setting(lv_obj_t *e)
 {
     lv_obj_align(e, tab_settings, LV_ALIGN_IN_TOP_MID, setgs_x, setgs_y);
     setgs_y += lv_obj_get_height(e);
+}
+
+void uiElements::add_setting2(lv_obj_t *e)
+{
+    lv_obj_align(e, tab_settings2, LV_ALIGN_IN_TOP_MID, setgs2_x, setgs2_y);
+    setgs2_y += lv_obj_get_height(e);
 }
 
 void uiElements::update_task(lv_task_t *ta)
@@ -89,60 +113,111 @@ void uiElements::update()
     lv_label_set_text(load_widget, buf);
 };
 
-#ifdef ALARM_SOUND
-void uiElements::biohazard_alarm(void)
+void uiElements::ui_task(void)
+{
+    printf("ui-task launched...\n");
+    while (1)
+    {
+        int res = biohazard_alarm();
+        delay(res);
+    }
+}
+
+int uiElements::biohazard_alarm(void)
 {
     static int mode = 0; /* 0 slow, 1 fast */
-    static int pitch = 400, delta;
+    static int pitch = 400, delta, bdelta;
     static const int pitch_max = 4000, pitch_min = pitch_max / 10, d1 = 20;
-    static int count = 0, dir = 1;
+    static const int multiplier = 2;
+    static int count = 0, dir = 1, bdir = 1;
     static bool initialized = false;
+    static const int bd1 = 10;
+    static int brightness = 0;
 
-    if (act_mode != UI_ALARM)
+    if (get_mode() != UI_ALARM)
     {
         if (initialized)
         {
             ledcWriteTone(buzzer_channel, 0);
             initialized = false;
             ledcDetachPin(BUZZER_PIN);
+            ledcDetachPin(TFT_LED);
+            digitalWrite(TFT_LED, LOW); /* turn on display */
         }
-        return;
+        return 500;
     }
     /* setup Buzzer */
     if (!initialized)
     {
+        /* attach PWM for buzzer sound */
+        if (play_sound())
+        {
+            ledcAttachPin(BUZZER_PIN, buzzer_channel);
+        }
         ledcSetup(buzzer_channel, 0, 8);
-        ledcAttachPin(BUZZER_PIN, buzzer_channel);
         ledcWrite(buzzer_channel, 125); /* duty cycle ~50% */
+        /* attach PWM for soft blinking backlight */
+        ledcAttachPin(TFT_LED, 1);
+        ledcSetup(1, 0, 12); /* hardware PWM channel 1 */
+        pitch = 400;
+        mode = 0;
+        brightness = 0;
+        bdir = dir = 1;
         initialized = true;
     }
 
     if (count < 6)
     {
-        delta = d1 + d1 * (2 * mode);
+        delta = dir * (d1 + d1 * (multiplier * mode));
     }
     else
     {
         count = 0;
         mode = mode ? 0 : 1;
     }
-    pitch = pitch + dir * delta;
+    pitch = pitch + delta;
 
-    if (pitch > pitch_max)
+    if (pitch > pitch_max || pitch < pitch_min)
     {
+        pitch -= delta;
         dir *= -1;
-        pitch = pitch_max;
         count++;
     }
-    if (pitch < pitch_min)
-    {
-        dir *= -1;
-        pitch = pitch_min;
-        count++;
-    }
+    //    if (play_sound())
     ledcWriteTone(buzzer_channel, pitch);
+
+    bdelta = bdir * (bd1 + bd1 * (multiplier * mode));
+    brightness = brightness + bdelta;
+    if (brightness < 0 || brightness > 1024)
+    {
+        brightness -= bdelta;
+        bdir *= -1;
+    }
+    ledcWrite(1, brightness);
+
+    return 5;
 }
-#endif
+
+bool uiElements::check_manual(void)
+{
+    if (!manual())
+    {
+        if (mwidget)
+            lv_obj_del(mwidget);
+        mwidget = nullptr;
+        return false;
+    }
+
+    if (!mwidget)
+    {
+        mwidget = lv_label_create(tab_status, NULL);
+        lv_label_set_recolor(mwidget, true);
+        lv_label_set_text(mwidget, "#ff0000 MANUELL MODUS");
+        lv_obj_set_style_local_text_font(mwidget, 0, LV_STATE_DEFAULT, &lv_font_montserrat_20);
+        lv_obj_align(mwidget, tab_status, LV_ALIGN_CENTER, 0, 0);
+    }
+    return true;
+}
 
 static tiny_hash_c<lv_obj_t *, button_label_c *> button_callbacks(10);
 static void button_cb_wrapper(lv_obj_t *obj, lv_event_t e)
@@ -156,8 +231,8 @@ void spinbox_cb_wrapper(lv_obj_t *obj, lv_event_t e)
     spinbox_callbacks.retrieve(obj)->cb(obj, e);
 }
 
-button_label_c::button_label_c(lv_obj_t *parent, genCircuit *c, const char *l, int w, int h, lv_align_t alignment)
-    : label_text(l)
+button_label_c::button_label_c(lv_obj_t *parent, uiElements *u, genCircuit *c, const char *l, int w, int h, lv_align_t alignment)
+    : uiCommons(u), label_text(l)
 {
     area = lv_obj_create(parent, NULL);
     lv_obj_set_size(area, w, h);
@@ -196,8 +271,8 @@ static void slider_cb_wrapper(lv_obj_t *obj, lv_event_t e)
     slider_callbacks.retrieve(obj)->cb(e);
 }
 
-slider_label_c::slider_label_c(lv_obj_t *parent, genCircuit *c, const char *l, myRange<float> &ra, myRange<float> &dr, int w, int h, lv_align_t alignment)
-    : label_text(l), ctrl_range(ra)
+slider_label_c::slider_label_c(lv_obj_t *parent, uiElements *u, genCircuit *c, const char *l, myRange<float> &ra, myRange<float> &dr, int w, int h, lv_align_t alignment)
+    : uiCommons(u), label_text(l), ctrl_range(ra)
 {
     circuit = c;
     area = lv_obj_create(parent, NULL);
@@ -258,9 +333,39 @@ void slider_label_c::set_label(const char *l, lv_color_t c)
     lv_label_set_text(label, l);
 }
 
+static tiny_hash_c<lv_obj_t *, settingsButton *> bsettings_callbacks(10);
+static void bsettings_cb_wrapper(lv_obj_t *obj, lv_event_t e)
+{
+    bsettings_callbacks.retrieve(obj)->cb(e);
+}
+
+settingsButton::settingsButton(lv_obj_t *parent, uiElements *u, const char *l, bool &v, int w, int h, lv_align_t alignment)
+    : uiCommons(ui), label_text(l), state(v)
+{
+    area = lv_obj_create(parent, NULL);
+    lv_obj_set_size(area, w, h);
+
+    obj = lv_switch_create(area, NULL);
+    lv_obj_align(obj, area, LV_ALIGN_IN_TOP_RIGHT, -10, h / 4);
+    lv_obj_set_event_cb(obj, bsettings_cb_wrapper);
+    bsettings_callbacks.store(obj, this);
+
+    label = lv_label_create(area, NULL);
+    lv_label_set_text(label, label_text);
+    lv_obj_align(label, area, LV_ALIGN_IN_TOP_LEFT, 10, h / 4);
+    lv_obj_set_style_local_text_font(label, 0, LV_STATE_DEFAULT, &lv_font_montserrat_20);
+}
+
+void settingsButton::cb(lv_event_t e)
+{
+    if (e == LV_EVENT_VALUE_CHANGED)
+    {
+        state = lv_switch_get_state(obj);
+    }
+}
 /* analogMeter */
 
-analogMeter::analogMeter(lv_obj_t *tab, const char *n, myRange<float> r, const char *u) : name(n), val(0.0), unit(u)
+analogMeter::analogMeter(lv_obj_t *tab, uiElements *ui, const char *n, myRange<float> r, const char *u) : uiCommons(ui), name(n), val(0.0), unit(u)
 {
     lv_obj_t *tmp;
     area = lv_obj_create(tab, NULL);
@@ -302,9 +407,6 @@ void uiScreensaver::update()
         {
             digitalWrite(TFT_LED, LOW);
             ui->set_mode(UI_OPERATIONAL);
-#ifdef ALARM_SOUND
-            ui->biohazard_alarm();
-#endif
             glob_delay = 5;
         }
         return;
@@ -321,8 +423,8 @@ void uiScreensaver::update()
         (hum_meter->get_val() < ctrl_humrange.get_lbound()) ||
         (hum_meter->get_val() > ctrl_humrange.get_ubound()))
     {
-        int t = digitalRead(TFT_LED);
-        digitalWrite(TFT_LED, (t == HIGH) ? LOW : HIGH);
+        //int t = digitalRead(TFT_LED);
+        //digitalWrite(TFT_LED, (t == HIGH) ? LOW : HIGH);
         ui->set_mode(UI_ALARM);
         glob_delay = 5;
 

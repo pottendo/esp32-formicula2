@@ -18,6 +18,7 @@ public:
 template <typename Sensor>
 class myCircuit : public genCircuit
 {
+    uiElements *ui;
     const String circuit_name;
     Sensor &sensor;
     ioSwitch &io;
@@ -29,19 +30,19 @@ class myCircuit : public genCircuit
     slider_label_c *slider;
 public:
     myCircuit(uiElements *ui, const String &n, Sensor &s, ioSwitch &i, float p, myRange<float> r, myRange<float> dr, myRange<struct tm> dc = {{0, 0, 0}, {59, 59, 23}})
-        : circuit_name(n), sensor(s), io(i), duty_cycle(dc), range(r), period(p)
+        : ui(ui), circuit_name(n), sensor(s), io(i), duty_cycle(dc), range(r), period(p)
     {
         ui->add_control((button =
-                             new button_label_c(ui->get_controls(), this, circuit_name.c_str(), 230, 48, LV_ALIGN_IN_TOP_LEFT))
+                             new button_label_c(ui->get_controls(), ui, this, circuit_name.c_str(), 230, 48, LV_ALIGN_IN_TOP_LEFT))
                             ->get_area());
         if (sensor.get_type() == REAL_SENSOR)
         {
             ui->add_setting((slider =
-                                 new slider_label_c(ui->get_settings(), this, circuit_name.c_str(), ctrl_temprange, dr, 230, 60, LV_ALIGN_IN_BOTTOM_LEFT))
+                                 new slider_label_c(ui->get_settings(), ui, this, circuit_name.c_str(), ctrl_temprange, dr, 230, 60, LV_ALIGN_IN_BOTTOM_LEFT))
                                 ->get_area());
         }
         if (sensor.get_type() == JUST_SWITCH) {
-            ui->add_setting((new rangeSpinbox<myRange<struct tm> >(ui->get_settings(), n.c_str(), duty_cycle, 230, 72))->get_area());
+            ui->add_setting((new rangeSpinbox<myRange<struct tm> >(ui->get_settings(), ui, n.c_str(), duty_cycle, 230, 72))->get_area());
         }
 
         circuit_task = lv_task_create(myCircuit::update_circuit, static_cast<uint32_t>(period * 1000), LV_TASK_PRIO_LOW, this);
@@ -68,6 +69,8 @@ public:
 
     void update(void)
     {
+        if (ui->check_manual())
+            return;/* don't do anything in manual mode */
         struct tm t;
         //log_msg(circuit_name + " - update...");
         log_msg(this->to_string());

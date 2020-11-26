@@ -17,7 +17,7 @@
 
 #define TFT_LED 15
 
-/* #define ALARM_SOUND */
+//#define ALARM_SOUND
 #define BUZZER_PIN 21
 
 template <typename T>
@@ -72,41 +72,60 @@ public:
 class uiElements
 {
     lv_obj_t *tab_view;
-    lv_obj_t *tab_status, *tab_controls, *tab_settings;
+    lv_obj_t *tab_status, *tab_controls, *tab_settings, *tab_settings2;
     lv_obj_t *modes[4];
     int stat_x = 0, stat_y = 0;
     int ctrl_x = 0, ctrl_y = 0;
     int setgs_x = 0, setgs_y = 0;
+    int setgs2_x = 0, setgs2_y = 0;
     ui_modes_t act_mode;
     uiScreensaver saver;
+    lv_obj_t *mwidget;
     lv_obj_t *time_widget;
     lv_obj_t *load_widget;
     const int buzzer_channel = 0;
+    SemaphoreHandle_t mutex;
+    bool do_sound = false;
+    bool do_manual = false;
 
 public:
     uiElements(int idle_time);
     ~uiElements() = default;
 
+    static void ui_task_wrapper(void *args);
+    void ui_task(void);
+
     inline lv_obj_t *get_status() { return tab_status; }
     inline lv_obj_t *get_controls() { return tab_controls; }
     inline lv_obj_t *get_settings() { return tab_settings; }
+    inline bool manual(void) { bool b; P(mutex); b = do_manual; V(mutex); return b; }
+    inline bool play_sound(void) { bool b; P(mutex); b = do_sound; V(mutex); return b; }
 
     void add_status(lv_obj_t *e);
     void add_control(lv_obj_t *e);
     void add_setting(lv_obj_t *e);
+    void add_setting2(lv_obj_t *e);
 
     inline void set_mode(ui_modes_t m)
     {
+        P(mutex);
         act_mode = m;
+        V(mutex);
         lv_scr_load(modes[m]);
     }
-    inline ui_modes_t get_mode(void) { return act_mode; }
+    inline ui_modes_t get_mode(void)
+    {
+        ui_modes_t r;
+        P(mutex);
+        r = act_mode;
+        V(mutex);
+        return r;
+    }
 
     static void update_task(lv_task_t *t);
     void update(void);
-#ifdef ALARM_SOUND
-    void biohazard_alarm(void);
-#endif
+    bool check_manual(void);
+    int biohazard_alarm(void);
 };
 
 class uiCommons
@@ -114,9 +133,10 @@ class uiCommons
 protected:
     genCircuit *circuit;
     lv_obj_t *area;
+    uiElements *ui;
 
 public:
-    uiCommons() = default;
+    uiCommons(uiElements *u) : ui(u) {}
     ~uiCommons() = default;
 
     inline lv_obj_t *get_area() { return area; }
@@ -129,7 +149,7 @@ class button_label_c : public uiCommons
     lv_obj_t *obj, *label;
 
 public:
-    button_label_c(lv_obj_t *parent, genCircuit *c, const char *l, int w, int h, lv_align_t a);
+    button_label_c(lv_obj_t *parent, uiElements *u, genCircuit *c, const char *l, int w, int h, lv_align_t a);
     ~button_label_c() = default;
 
     void cb(lv_event_t event);
@@ -144,7 +164,7 @@ class slider_label_c : public uiCommons
     lv_obj_t *slider_up_label, *slider_down_label;
 
 public:
-    slider_label_c(lv_obj_t *parent, genCircuit *c, const char *l, myRange<float> &ra, myRange<float> &da, int width, int height, lv_align_t a);
+    slider_label_c(lv_obj_t *parent, uiElements *u, genCircuit *c, const char *l, myRange<float> &ra, myRange<float> &da, int width, int height, lv_align_t a);
     ~slider_label_c() = default;
 
     void cb(lv_event_t event);
@@ -152,6 +172,19 @@ public:
 };
 extern slider_label_c *temp_disp;
 extern slider_label_c *hum_disp;
+
+class settingsButton : public uiCommons
+{
+    const char *label_text;
+    lv_obj_t *obj, *label;
+    bool &state;
+
+public:
+    settingsButton(lv_obj_t *parent, uiElements *u, const char *l, bool &var, int width, int height, lv_align_t a = LV_ALIGN_CENTER);
+    ~settingsButton() = default;
+
+    void cb(lv_event_t event);
+};
 
 /* analog display meter */
 
@@ -163,7 +196,7 @@ class analogMeter : public uiCommons
     const char *unit;
 
 public:
-    analogMeter(lv_obj_t *tab, const char *n, myRange<float> r, const char *unit);
+    analogMeter(lv_obj_t *tab, uiElements *u, const char *n, myRange<float> r, const char *unit);
     ~analogMeter() = default;
 
     inline void set_val(float v)
@@ -285,7 +318,7 @@ class rangeSpinbox : public uiCommons
     lv_obj_t *spinbox_lower, *spinbox_upper;
 
 public:
-    rangeSpinbox(lv_obj_t *tab, const char *n, T &r, int w, int h) : label(n), range(r)
+    rangeSpinbox(lv_obj_t *tab, uiElements *u, const char *n, T &r, int w, int h) : uiCommons(u), label(n), range(r)
     {
         area = lv_obj_create(tab, NULL);
         lv_obj_set_size(area, w, h);
