@@ -7,6 +7,7 @@
 /* some globals */
 myRange<float> ctrl_temprange{20.0, 30.0};
 myRange<float> ctrl_humrange{50.0, 99.99};
+myRange<struct tm> def_day{{0,0,7}, {0,0,19}};
 const int ui_ss_timeout = 30; /* screensaver timeout in s */
 int glob_delay = 10;
 
@@ -22,16 +23,8 @@ static myCircuit<tempSensor> *circuit_heater;
 static myCircuit<humSensor> *circuit_fan;
 static myCircuit<humSensor> *circuit_fog;
 static myCircuit<humSensor> *circuit_fog2;
-//static myCircuit<humSensor> *circuit_spare1;
 //static myCircuit<tempSensor> *circuit_spare2;
-static const char *circuit_names[] = {
-    "Zeitschalter",
-    "Infrarot",
-    "Heizmatte", 
-    "Luefter",
-    "Nebel Berg",
-    "Nebel Erde",
-    NULL};
+
 static uiElements *ui;
 
 void setup()
@@ -59,30 +52,42 @@ void setup()
     io_spare2 = new ioSwitch(25);
 
     circuit_timeswitch =
-        new myCircuit<timeSwitch>(ui, String(circuit_names[0]), *tswitch, *io_tswitch,
+        new myCircuit<timeSwitch>(ui, "Zeitschalter", *tswitch, *io_tswitch,
                                   5,
-                                  myRange<float>{0.0, 0.0}, ctrl_temprange,
+                                  myRange<float>{0.0, 0.0}, 
+                                  myRange<float>{0.0, 0.0}, 
+                                  ctrl_temprange,
                                   *(new myRange<struct tm>{{0, 0, 7}, {0, 0, 22}}));
     circuit_infrared =
-        new myCircuit<tempSensor>(ui, String(circuit_names[1]), *tsensor_berg, *io_infrared,
+        new myCircuit<tempSensor>(ui, "Infrarot", *tsensor_berg, *io_infrared,
                                   5,
-                                  myRange<float>{28.0, 29.0}, ctrl_temprange);
+                                  myRange<float>{28.0, 29.0}, 
+                                  myRange<float>{28.0, 29.0}, 
+                                  ctrl_temprange);
     circuit_heater =
-        new myCircuit<tempSensor>(ui, String(circuit_names[2]), *tsensor_erde, *io_infrared,
+        new myCircuit<tempSensor>(ui, "Heizmatte", *tsensor_erde, *io_infrared,
                                   5,
-                                  myRange<float>{27.0, 28.0}, ctrl_temprange);
+                                  myRange<float>{27.0, 28.0}, 
+                                  myRange<float>{27.0, 28.0}, 
+                                  ctrl_temprange);
     circuit_fan =
-        new myCircuit<humSensor>(ui, String(circuit_names[3]), *hsensor_berg, *io_fan,
+        new myCircuit<humSensor>(ui, "Luefter", *hsensor_berg, *io_fan,
                                  5,
-                                 myRange<float>{65.0, 75.0}, ctrl_humrange); // inverse logic for fan as hum drops
+                                 myRange<float>{65.0, 75.0}, 
+                                 myRange<float>{65.0, 75.0}, 
+                                 ctrl_humrange); // inverse logic for fan as hum drops
     circuit_fog =
-        new myCircuit<humSensor>(ui, String(circuit_names[4]), *hsensor_berg, *io_fog,
+        new myCircuit<humSensor>(ui, "Nebel Berg", *hsensor_berg, *io_fog,
                                  5,
-                                 myRange<float>{60.0, 65.0}, ctrl_humrange);
+                                 myRange<float>{60.0, 65.0}, 
+                                 myRange<float>{60.0, 65.0}, 
+                                 ctrl_humrange);
     circuit_fog2 =
-        new myCircuit<humSensor>(ui, String(circuit_names[5]), *hsensor_erde, *io_fog,
+        new myCircuit<humSensor>(ui, "Nebel Erde", *hsensor_erde, *io_fog,
                                  5,
-                                 myRange<float>{65.0, 75.0}, ctrl_humrange);
+                                 myRange<float>{65.0, 75.0}, 
+                                 myRange<float>{65.0, 75.0}, 
+                                 ctrl_humrange);
     ui->set_mode(UI_OPERATIONAL);
 #if 0
     circuit_spare2 = new myCircuit<tempSensor>(String("Spare2"), *tsensor, *io_spare2, 4);

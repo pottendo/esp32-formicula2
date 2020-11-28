@@ -52,6 +52,8 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
     lv_label_set_text(load_widget, "Load: ");
     add2ui(UI_CFG2, load_widget);
 
+    add2ui(UI_CFG2, (new rangeSpinbox<myRange<struct tm>>(this, UI_CFG2, "Tag", def_day, 230, 72))->get_area());
+
     /* settings */
     add2ui(UI_SETTINGS, (new settingsButton(this, UI_SETTINGS, "Alarm Sound", do_sound, 230, 48))->get_area());
     add2ui(UI_SETTINGS, (new settingsButton(this, UI_SETTINGS, "Manuell", do_manual, 230, 48))->get_area());
@@ -221,19 +223,18 @@ void spinbox_cb_wrapper(lv_obj_t *obj, lv_event_t e)
     spinbox_callbacks.retrieve(obj)->cb(obj, e);
 }
 
-button_label_c::button_label_c(uiElements *ui, ui_tabs_t t, genCircuit *c, const char *l, int w, int h)
-    : uiCommons(ui), label_text(l)
+button_label_c::button_label_c(uiElements *ui, ui_tabs_t t, genCircuit *c, int w, int h)
+    : uiCommons(ui), circuit(c)
 {
     area = lv_obj_create(ui->get_tab(t), NULL);
     lv_obj_set_size(area, w, h);
-    circuit = c;
     obj = lv_switch_create(area, NULL);
     lv_obj_align(obj, area, LV_ALIGN_IN_TOP_RIGHT, -10, h / 4);
     lv_obj_set_event_cb(obj, button_cb_wrapper);
     button_callbacks.store(obj, this);
 
     label = lv_label_create(area, NULL);
-    lv_label_set_text(label, label_text);
+    lv_label_set_text(label, c->get_name().c_str());
     lv_obj_align(label, area, LV_ALIGN_IN_TOP_LEFT, 10, h / 4);
     lv_obj_set_style_local_text_font(label, 0, LV_STATE_DEFAULT, &lv_font_montserrat_20);
 }
@@ -242,7 +243,7 @@ void button_label_c::cb(lv_event_t e)
 {
     if (e == LV_EVENT_VALUE_CHANGED)
     {
-        printf("%s: %s\n", label_text, lv_switch_get_state(obj) ? "On" : "Off");
+        printf("%s: %s\n", circuit->get_name().c_str(), lv_switch_get_state(obj) ? "On" : "Off");
         circuit->io_set((lv_switch_get_state(obj) ? HIGH : LOW), true); /* force HIGH/LOW without invers */
     }
 }
@@ -261,10 +262,10 @@ static void slider_cb_wrapper(lv_obj_t *obj, lv_event_t e)
     slider_callbacks.retrieve(obj)->cb(e);
 }
 
-slider_label_c::slider_label_c(uiElements *ui, ui_tabs_t t, genCircuit *c, const char *l, myRange<float> &ra, myRange<float> &dr, int w, int h)
-    : uiCommons(ui), label_text(l), ctrl_range(ra)
+slider_label_c::slider_label_c(uiElements *ui, ui_tabs_t t, genCircuit *c, myRange<float> &ra, myRange<float> &cr, int w, int h, bool d)
+    : uiCommons(ui), range(ra), is_day(d)
 {
-    circuit = c;
+    static char b[64];
     area = lv_obj_create(ui->get_tab(t), NULL);
     lv_obj_set_size(area, w, h);
 
@@ -275,45 +276,44 @@ slider_label_c::slider_label_c(uiElements *ui, ui_tabs_t t, genCircuit *c, const
     lv_obj_align(slider, area, LV_ALIGN_IN_TOP_RIGHT, -10, h / 2);
     lv_obj_set_event_cb(slider, slider_cb_wrapper);
     slider_callbacks.store(slider, this);
-    lv_slider_set_range(slider, dr.get_lbound() * 100, dr.get_ubound() * 100);
+    lv_slider_set_range(slider, cr.get_lbound() * 100, cr.get_ubound() * 100);
 
-    myRange<float> r = circuit->get_range();
-    lv_slider_set_left_value(slider, r.get_lbound() * 100, LV_ANIM_ON);
-    lv_slider_set_value(slider, r.get_ubound() * 100, LV_ANIM_ON);
+    lv_slider_set_left_value(slider, range.get_lbound() * 100, LV_ANIM_ON);
+    lv_slider_set_value(slider, range.get_ubound() * 100, LV_ANIM_ON);
 
     /* slider label */
+    snprintf(b, 64, "%s:%s", (is_day ? "#7f7f7f T" : "#0000ff N"), c->get_name().c_str());
     label = lv_label_create(area, NULL);
-    lv_label_set_text(label, label_text);
+    lv_label_set_recolor(label, true);
+    lv_label_set_text(label, b);
     lv_obj_align(label, slider, LV_ALIGN_OUT_TOP_LEFT, 0, -5);
     //   lv_obj_set_style_local_text_font(label, 0, LV_STATE_DEFAULT, &lv_font_montserrat_20);
 
-    static char b[10];
     /* Create a label for ranges above the slider */
     slider_up_label = lv_label_create(area, NULL);
-    snprintf(b, 6, "%.2f", r.get_ubound());
+    snprintf(b, 8, "%.2f", range.get_ubound());
     lv_label_set_text(slider_up_label, b);
     lv_obj_set_auto_realign(slider_up_label, true);
     lv_obj_align(slider_up_label, slider, LV_ALIGN_OUT_TOP_RIGHT, 0, -5);
 
     slider_down_label = lv_label_create(area, NULL);
-    snprintf(b, 6, "%.2f", r.get_lbound());
+    snprintf(b, 10, "%.2f--", range.get_lbound());
     lv_label_set_text(slider_down_label, b);
     lv_obj_set_auto_realign(slider_down_label, true);
-    lv_obj_align(slider_down_label, slider, LV_ALIGN_OUT_TOP_MID, 0, -5);
+    lv_obj_align(slider_down_label, slider_up_label, LV_ALIGN_OUT_LEFT_MID, 0, 0);
 }
 
 void slider_label_c::cb(lv_event_t e)
 {
     if (e == LV_EVENT_VALUE_CHANGED)
     {
-        myRange<float> &r = circuit->get_range();
         static char buf[10];
-        snprintf(buf, 6, "%.2f", static_cast<float>(lv_slider_get_value(slider)) / 100);
+        snprintf(buf, 8, "%.2f", static_cast<float>(lv_slider_get_value(slider)) / 100);
         lv_label_set_text(slider_up_label, buf);
-        r.set_ubound(static_cast<float>(lv_slider_get_value(slider)) / 100);
-        snprintf(buf, 6, "%.2f", static_cast<float>(lv_slider_get_left_value(slider)) / 100);
+        range.set_ubound(static_cast<float>(lv_slider_get_value(slider)) / 100);
+        snprintf(buf, 10, "%.2f--", static_cast<float>(lv_slider_get_left_value(slider)) / 100);
         lv_label_set_text(slider_down_label, buf);
-        r.set_lbound(static_cast<float>(lv_slider_get_left_value(slider)) / 100);
+        range.set_lbound(static_cast<float>(lv_slider_get_left_value(slider)) / 100);
     }
 }
 

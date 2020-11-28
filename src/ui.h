@@ -34,6 +34,8 @@ void log_msg(const String s);
 extern lv_obj_t *log_handle;
 extern myRange<float> ctrl_temprange;
 extern myRange<float> ctrl_humrange;
+extern myRange<struct tm> def_day;
+
 extern int glob_delay;
 
 void setup_wifi(void);
@@ -145,11 +147,11 @@ public:
 /* class defintions */
 class button_label_c : public uiCommons
 {
-    const char *label_text;
     lv_obj_t *obj, *label;
+    genCircuit *circuit;
 
 public:
-    button_label_c(uiElements *ui, ui_tabs_t t, genCircuit *c, const char *l, int w, int h);
+    button_label_c(uiElements *ui, ui_tabs_t t, genCircuit *c, int w, int h);
     ~button_label_c() = default;
 
     void cb(lv_event_t event);
@@ -158,13 +160,13 @@ public:
 
 class slider_label_c : public uiCommons
 {
-    const char *label_text;
-    myRange<float> &ctrl_range;
+    myRange<float> &range;
+    bool is_day;
     lv_obj_t *slider, *label;
     lv_obj_t *slider_up_label, *slider_down_label;
 
 public:
-    slider_label_c(uiElements *ui, ui_tabs_t t, genCircuit *c, const char *l, myRange<float> &ra, myRange<float> &da, int width, int height);
+    slider_label_c(uiElements *ui, ui_tabs_t t, genCircuit *c, myRange<float> &ra, myRange<float> &cr, int width, int height, bool day = true);
     ~slider_label_c() = default;
 
     void cb(lv_event_t event);
