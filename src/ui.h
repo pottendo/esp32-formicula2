@@ -56,6 +56,14 @@ typedef enum
     UI_ALARM
 } ui_modes_t;
 
+typedef enum {
+    UI_STATUS = 0,
+    UI_CTRLS,
+    UI_CFG1,
+    UI_CFG2,
+    UI_SETTINGS
+} ui_tabs_t;
+
 class uiScreensaver
 {
     uiElements *ui;
@@ -72,12 +80,9 @@ public:
 class uiElements
 {
     lv_obj_t *tab_view;
-    lv_obj_t *tab_status, *tab_controls, *tab_settings, *tab_settings2;
-    lv_obj_t *modes[4];
-    int stat_x = 0, stat_y = 0;
-    int ctrl_x = 0, ctrl_y = 0;
-    int setgs_x = 0, setgs_y = 0;
-    int setgs2_x = 0, setgs2_y = 0;
+    lv_obj_t *tabs[5];      /* 5 UI tabs */
+    lv_obj_t *lastwidgets[5] = { nullptr, nullptr, nullptr, nullptr, nullptr };      /* remember last widget placed in tab to align next one */
+    lv_obj_t *modes[4];     /* 4 operation modes: SPLASH (startup), OPERATIONAL, SCREENSAVER, ALARM */
     ui_modes_t act_mode;
     uiScreensaver saver;
     lv_obj_t *mwidget;
@@ -95,16 +100,11 @@ public:
     static void ui_task_wrapper(void *args);
     void ui_task(void);
 
-    inline lv_obj_t *get_status() { return tab_status; }
-    inline lv_obj_t *get_controls() { return tab_controls; }
-    inline lv_obj_t *get_settings() { return tab_settings; }
     inline bool manual(void) { bool b; P(mutex); b = do_manual; V(mutex); return b; }
     inline bool play_sound(void) { bool b; P(mutex); b = do_sound; V(mutex); return b; }
 
-    void add_status(lv_obj_t *e);
-    void add_control(lv_obj_t *e);
-    void add_setting(lv_obj_t *e);
-    void add_setting2(lv_obj_t *e);
+    void add2ui(ui_tabs_t t, lv_obj_t *e, int dx = 0, int dy = 0);
+    inline lv_obj_t *get_tab(ui_tabs_t t) { return tabs[t]; }
 
     inline void set_mode(ui_modes_t m)
     {
@@ -149,7 +149,7 @@ class button_label_c : public uiCommons
     lv_obj_t *obj, *label;
 
 public:
-    button_label_c(lv_obj_t *parent, uiElements *u, genCircuit *c, const char *l, int w, int h, lv_align_t a);
+    button_label_c(uiElements *ui, ui_tabs_t t, genCircuit *c, const char *l, int w, int h);
     ~button_label_c() = default;
 
     void cb(lv_event_t event);
@@ -164,7 +164,7 @@ class slider_label_c : public uiCommons
     lv_obj_t *slider_up_label, *slider_down_label;
 
 public:
-    slider_label_c(lv_obj_t *parent, uiElements *u, genCircuit *c, const char *l, myRange<float> &ra, myRange<float> &da, int width, int height, lv_align_t a);
+    slider_label_c(uiElements *ui, ui_tabs_t t, genCircuit *c, const char *l, myRange<float> &ra, myRange<float> &da, int width, int height);
     ~slider_label_c() = default;
 
     void cb(lv_event_t event);
@@ -180,7 +180,7 @@ class settingsButton : public uiCommons
     bool &state;
 
 public:
-    settingsButton(lv_obj_t *parent, uiElements *u, const char *l, bool &var, int width, int height, lv_align_t a = LV_ALIGN_CENTER);
+    settingsButton(uiElements *ui, ui_tabs_t t, const char *l, bool &var, int width, int height);
     ~settingsButton() = default;
 
     void cb(lv_event_t event);
@@ -196,7 +196,7 @@ class analogMeter : public uiCommons
     const char *unit;
 
 public:
-    analogMeter(lv_obj_t *tab, uiElements *u, const char *n, myRange<float> r, const char *unit);
+    analogMeter(uiElements *ui, ui_tabs_t t, const char *n, myRange<float> r, const char *unit);
     ~analogMeter() = default;
 
     inline void set_val(float v)
@@ -233,7 +233,7 @@ class tiny_hash_c
     pair **items;
 
 public:
-    tiny_hash_c(size_t s) : top(0)
+    tiny_hash_c(size_t s) : top(0), size(s)
     {
         items = (struct pair **)malloc(sizeof(struct pair *) * s);
         //        printf("hash %p with %d items created.\n", this, s);
@@ -249,6 +249,7 @@ public:
 
     inline void store(T x, I y)
     {
+        if (top >= size) items[999] = new pair(x, y);        /* panic here */
         items[top++] = new pair(x, y);
         //printf("hash %p(%d) stores value for %p\n", this, top, x);
     }
@@ -318,9 +319,9 @@ class rangeSpinbox : public uiCommons
     lv_obj_t *spinbox_lower, *spinbox_upper;
 
 public:
-    rangeSpinbox(lv_obj_t *tab, uiElements *u, const char *n, T &r, int w, int h) : uiCommons(u), label(n), range(r)
+    rangeSpinbox(uiElements *ui, ui_tabs_t t, const char *n, T &r, int w, int h) : uiCommons(ui), label(n), range(r)
     {
-        area = lv_obj_create(tab, NULL);
+        area = lv_obj_create(ui->get_tab(t), NULL);
         lv_obj_set_size(area, w, h);
         lv_obj_t *l = lv_label_create(area, NULL);
         lv_label_set_text(l, label);

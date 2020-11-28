@@ -32,28 +32,29 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
     lv_obj_align(alarmpic, modes[UI_ALARM], LV_ALIGN_CENTER, 0, 0);
 
     tab_view = lv_tabview_create(modes[UI_OPERATIONAL], NULL);
-    tab_status = lv_tabview_add_tab(tab_view, "Status");
-    tab_controls = lv_tabview_add_tab(tab_view, "Ctrls");
-    tab_settings = lv_tabview_add_tab(tab_view, "Cfg");
-    tab_settings2 = lv_tabview_add_tab(tab_view, "Set");
+    tabs[UI_STATUS] = lv_tabview_add_tab(tab_view, "Status");
+    tabs[UI_CTRLS] = lv_tabview_add_tab(tab_view, "Ctrls");
+    tabs[UI_CFG1] = lv_tabview_add_tab(tab_view, "Cfg1");
+    tabs[UI_CFG2] = lv_tabview_add_tab(tab_view, "Cfg2");
+    tabs[UI_SETTINGS] = lv_tabview_add_tab(tab_view, "Set");
 
     /* tab 1 - Status */
-    temp_meter = new analogMeter(tab_status, this, "Temperatur", ctrl_temprange, "C");
-    add_status(temp_meter->get_area());
+    temp_meter = new analogMeter(this, UI_STATUS, "Temperatur", ctrl_temprange, "C");
+    add2ui(UI_STATUS, temp_meter->get_area());
 
-    hum_meter = new analogMeter(tab_status, this, "Feuchtigkeit", ctrl_humrange, "\%");
-    add_status(hum_meter->get_area());
+    hum_meter = new analogMeter(this, UI_STATUS, "Feuchtigkeit", ctrl_humrange, "\%");
+    add2ui(UI_STATUS, hum_meter->get_area());
 
-    time_widget = lv_label_create(tab_controls, NULL);
+    time_widget = lv_label_create(tabs[UI_CFG2], NULL);
     lv_label_set_text(time_widget, "Time: ");
-    add_control(time_widget);
-    load_widget = lv_label_create(tab_controls, NULL);
+    add2ui(UI_CFG2, time_widget);
+    load_widget = lv_label_create(tabs[UI_CFG2], NULL);
     lv_label_set_text(load_widget, "Load: ");
-    add_control(load_widget);
+    add2ui(UI_CFG2, load_widget);
 
     /* settings */
-    add_setting2((new settingsButton(tab_settings2, this, "Alarm Sound", do_sound, 230, 48))->get_area());
-    add_setting2((new settingsButton(tab_settings2, this, "Manuell", do_manual, 230, 48))->get_area());
+    add2ui(UI_SETTINGS, (new settingsButton(this, UI_SETTINGS, "Alarm Sound", do_sound, 230, 48))->get_area());
+    add2ui(UI_SETTINGS, (new settingsButton(this, UI_SETTINGS, "Manuell", do_manual, 230, 48))->get_area());
 
     /* update screensaver, status widgets periodically per 1s */
     lv_task_create(update_task, 1000, LV_TASK_PRIO_LOWEST, this);
@@ -69,28 +70,17 @@ void uiElements::ui_task_wrapper(void *obj)
     o->ui_task();
 }
 
-void uiElements::add_status(lv_obj_t *e)
+void uiElements::add2ui(ui_tabs_t t, lv_obj_t *e, int dx, int dy)
 {
-    lv_obj_align(e, tab_status, LV_ALIGN_IN_TOP_MID, stat_x, stat_y);
-    stat_y += lv_obj_get_height(e);
-}
-
-void uiElements::add_control(lv_obj_t *e)
-{
-    lv_obj_align(e, tab_controls, LV_ALIGN_IN_TOP_LEFT, ctrl_x, ctrl_y);
-    ctrl_y += lv_obj_get_height(e);
-}
-
-void uiElements::add_setting(lv_obj_t *e)
-{
-    lv_obj_align(e, tab_settings, LV_ALIGN_IN_TOP_MID, setgs_x, setgs_y);
-    setgs_y += lv_obj_get_height(e);
-}
-
-void uiElements::add_setting2(lv_obj_t *e)
-{
-    lv_obj_align(e, tab_settings2, LV_ALIGN_IN_TOP_MID, setgs2_x, setgs2_y);
-    setgs2_y += lv_obj_get_height(e);
+    if (lastwidgets[t])
+    {
+        lv_obj_align(e, lastwidgets[t], LV_ALIGN_OUT_BOTTOM_LEFT, dx, dy);
+    }
+    else
+    {
+        lv_obj_align(e, get_tab(t), LV_ALIGN_IN_TOP_LEFT, dx, dy);
+    }
+    lastwidgets[t] = e;
 }
 
 void uiElements::update_task(lv_task_t *ta)
@@ -210,11 +200,11 @@ bool uiElements::check_manual(void)
 
     if (!mwidget)
     {
-        mwidget = lv_label_create(tab_status, NULL);
+        mwidget = lv_label_create(get_tab(UI_STATUS), NULL);
         lv_label_set_recolor(mwidget, true);
         lv_label_set_text(mwidget, "#ff0000 MANUELL MODUS");
         lv_obj_set_style_local_text_font(mwidget, 0, LV_STATE_DEFAULT, &lv_font_montserrat_20);
-        lv_obj_align(mwidget, tab_status, LV_ALIGN_CENTER, 0, 0);
+        lv_obj_align(mwidget, get_tab(UI_STATUS), LV_ALIGN_CENTER, 0, 0);
     }
     return true;
 }
@@ -231,10 +221,10 @@ void spinbox_cb_wrapper(lv_obj_t *obj, lv_event_t e)
     spinbox_callbacks.retrieve(obj)->cb(obj, e);
 }
 
-button_label_c::button_label_c(lv_obj_t *parent, uiElements *u, genCircuit *c, const char *l, int w, int h, lv_align_t alignment)
-    : uiCommons(u), label_text(l)
+button_label_c::button_label_c(uiElements *ui, ui_tabs_t t, genCircuit *c, const char *l, int w, int h)
+    : uiCommons(ui), label_text(l)
 {
-    area = lv_obj_create(parent, NULL);
+    area = lv_obj_create(ui->get_tab(t), NULL);
     lv_obj_set_size(area, w, h);
     circuit = c;
     obj = lv_switch_create(area, NULL);
@@ -271,18 +261,12 @@ static void slider_cb_wrapper(lv_obj_t *obj, lv_event_t e)
     slider_callbacks.retrieve(obj)->cb(e);
 }
 
-slider_label_c::slider_label_c(lv_obj_t *parent, uiElements *u, genCircuit *c, const char *l, myRange<float> &ra, myRange<float> &dr, int w, int h, lv_align_t alignment)
-    : uiCommons(u), label_text(l), ctrl_range(ra)
+slider_label_c::slider_label_c(uiElements *ui, ui_tabs_t t, genCircuit *c, const char *l, myRange<float> &ra, myRange<float> &dr, int w, int h)
+    : uiCommons(ui), label_text(l), ctrl_range(ra)
 {
     circuit = c;
-    area = lv_obj_create(parent, NULL);
+    area = lv_obj_create(ui->get_tab(t), NULL);
     lv_obj_set_size(area, w, h);
-
-    /* slider label */
-    label = lv_label_create(area, NULL);
-    lv_label_set_text(label, label_text);
-    lv_obj_align(label, area, LV_ALIGN_IN_TOP_LEFT, 5, 5);
-    //   lv_obj_set_style_local_text_font(label, 0, LV_STATE_DEFAULT, &lv_font_montserrat_20);
 
     /* slider */
     slider = lv_slider_create(area, NULL);
@@ -297,19 +281,25 @@ slider_label_c::slider_label_c(lv_obj_t *parent, uiElements *u, genCircuit *c, c
     lv_slider_set_left_value(slider, r.get_lbound() * 100, LV_ANIM_ON);
     lv_slider_set_value(slider, r.get_ubound() * 100, LV_ANIM_ON);
 
+    /* slider label */
+    label = lv_label_create(area, NULL);
+    lv_label_set_text(label, label_text);
+    lv_obj_align(label, slider, LV_ALIGN_OUT_TOP_LEFT, 0, -5);
+    //   lv_obj_set_style_local_text_font(label, 0, LV_STATE_DEFAULT, &lv_font_montserrat_20);
+
     static char b[10];
-    /* Create a label for ranges below the slider */
+    /* Create a label for ranges above the slider */
     slider_up_label = lv_label_create(area, NULL);
     snprintf(b, 6, "%.2f", r.get_ubound());
     lv_label_set_text(slider_up_label, b);
     lv_obj_set_auto_realign(slider_up_label, true);
-    lv_obj_align(slider_up_label, slider, LV_ALIGN_OUT_BOTTOM_RIGHT, 0, 5);
+    lv_obj_align(slider_up_label, slider, LV_ALIGN_OUT_TOP_RIGHT, 0, -5);
 
     slider_down_label = lv_label_create(area, NULL);
     snprintf(b, 6, "%.2f", r.get_lbound());
     lv_label_set_text(slider_down_label, b);
     lv_obj_set_auto_realign(slider_down_label, true);
-    lv_obj_align(slider_down_label, slider, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 5);
+    lv_obj_align(slider_down_label, slider, LV_ALIGN_OUT_TOP_MID, 0, -5);
 }
 
 void slider_label_c::cb(lv_event_t e)
@@ -339,10 +329,10 @@ static void bsettings_cb_wrapper(lv_obj_t *obj, lv_event_t e)
     bsettings_callbacks.retrieve(obj)->cb(e);
 }
 
-settingsButton::settingsButton(lv_obj_t *parent, uiElements *u, const char *l, bool &v, int w, int h, lv_align_t alignment)
+settingsButton::settingsButton(uiElements *ui, ui_tabs_t t, const char *l, bool &v, int w, int h)
     : uiCommons(ui), label_text(l), state(v)
 {
-    area = lv_obj_create(parent, NULL);
+    area = lv_obj_create(ui->get_tab(t), NULL);
     lv_obj_set_size(area, w, h);
 
     obj = lv_switch_create(area, NULL);
@@ -365,10 +355,10 @@ void settingsButton::cb(lv_event_t e)
 }
 /* analogMeter */
 
-analogMeter::analogMeter(lv_obj_t *tab, uiElements *ui, const char *n, myRange<float> r, const char *u) : uiCommons(ui), name(n), val(0.0), unit(u)
+analogMeter::analogMeter(uiElements *ui, ui_tabs_t t, const char *n, myRange<float> r, const char *u) : uiCommons(ui), name(n), val(0.0), unit(u)
 {
     lv_obj_t *tmp;
-    area = lv_obj_create(tab, NULL);
+    area = lv_obj_create(ui->get_tab(t), NULL);
     lv_obj_set_size(area, 230, 126);
 
     lmeter = lv_linemeter_create(area, NULL);
@@ -389,9 +379,9 @@ analogMeter::analogMeter(lv_obj_t *tab, uiElements *ui, const char *n, myRange<f
 
     lv_obj_align(lmeter, area, LV_ALIGN_CENTER, 0, 0);
 
-    lv_obj_t *t = lv_label_create(lmeter, NULL);
-    lv_label_set_text(t, name);
-    lv_obj_align(t, lmeter, LV_ALIGN_IN_BOTTOM_MID, 0, -10);
+    lv_obj_t *te = lv_label_create(lmeter, NULL);
+    lv_label_set_text(te, name);
+    lv_obj_align(te, lmeter, LV_ALIGN_IN_BOTTOM_MID, 0, -10);
 
     temp_label = lv_label_create(lmeter, NULL);
     set_act();

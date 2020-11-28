@@ -23,12 +23,12 @@ myDHT::myDHT(String n, int p, uiElements *u, DHTesp::DHT_MODEL_t m)
         log_msg("Failed to create taks for DHT sensor.");
     }
 
-    ui_widget = lv_label_create(ui->get_controls(), NULL);
+    ui_widget = lv_label_create(ui->get_tab(UI_CFG2), NULL);
     char buf[8];
     snprintf(buf, 8, "DHT(%d)", pin);
     lv_label_set_text(ui_widget, buf);
     lv_label_set_recolor(ui_widget, true);
-    ui->add_control(ui_widget);
+    ui->add2ui(UI_CFG2, ui_widget);
 }
 
 void myDHT::update_data(void)
