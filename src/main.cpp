@@ -62,7 +62,7 @@ void setup()
         new myCircuit<tempSensor>(ui, "Infrarot", *tsensor_berg, *io_infrared,
                                   5,
                                   myRange<float>{28.0, 29.0}, 
-                                  myRange<float>{28.0, 29.0}, 
+                                  myRange<float>{24.0, 27.0}, 
                                   ctrl_temprange);
     circuit_heater =
         new myCircuit<tempSensor>(ui, "Heizmatte", *tsensor_erde, *io_infrared,
@@ -85,8 +85,8 @@ void setup()
     circuit_fog2 =
         new myCircuit<humSensor>(ui, "Nebel Erde", *hsensor_erde, *io_fog,
                                  5,
-                                 myRange<float>{65.0, 75.0}, 
-                                 myRange<float>{65.0, 75.0}, 
+                                 myRange<float>{65.0, 80.0}, 
+                                 myRange<float>{65.0, 80.0}, 
                                  ctrl_humrange);
     ui->set_mode(UI_OPERATIONAL);
 #if 0

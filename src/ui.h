@@ -390,12 +390,15 @@ public:
 
     void cb(lv_obj_t *o, lv_event_t e)
     {
-        int v;
+        int v, t;
         if (e == LV_EVENT_SHORT_CLICKED || e == LV_EVENT_LONG_PRESSED_REPEAT)
         {
             switch (btype.retrieve(o))
             {
             case 0:
+                t = lv_spinbox_get_value(spinbox_upper);
+                if (lv_spinbox_get_value(spinbox_lower) == t)
+                    return;
                 lv_spinbox_increment(spinbox_lower);
                 v = lv_spinbox_get_value(spinbox_lower);
                 range.set_lbound(v);
@@ -411,6 +414,9 @@ public:
                 range.set_ubound(v);
                 break;
             case 3:
+                t = lv_spinbox_get_value(spinbox_lower);
+                if (lv_spinbox_get_value(spinbox_upper) == t)
+                    return;
                 lv_spinbox_decrement(spinbox_upper);
                 v = lv_spinbox_get_value(spinbox_upper);
                 range.set_ubound(v);
