@@ -268,6 +268,7 @@ slider_label_c::slider_label_c(uiElements *ui, ui_tabs_t t, genCircuit *c, myRan
     static char b[64];
     area = lv_obj_create(ui->get_tab(t), NULL);
     lv_obj_set_size(area, w, h);
+    lv_obj_set_style_local_bg_color(area, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_MAKE(0xc0, 0xc0, 0xc0));
 
     /* slider */
     slider = lv_slider_create(area, NULL);
@@ -282,7 +283,7 @@ slider_label_c::slider_label_c(uiElements *ui, ui_tabs_t t, genCircuit *c, myRan
     lv_slider_set_value(slider, range.get_ubound() * 100, LV_ANIM_ON);
 
     /* slider label */
-    snprintf(b, 64, "%s", (is_day ? c->get_name().c_str(): ""));
+    snprintf(b, 64, "%s", (is_day ? c->get_name().c_str() : ""));
     label = lv_label_create(area, NULL);
     lv_label_set_recolor(label, true);
     lv_label_set_text(label, b);

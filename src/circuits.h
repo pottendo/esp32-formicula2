@@ -47,7 +47,7 @@ public:
                                     ->get_area(), 0, 10);
             ui->add2ui(UI_CFG1, (slider_night =
                                      new slider_label_c(ui, UI_CFG1, this, range_night, dr, 200, 50, false))
-                                    ->get_area());
+                                    ->get_area(), 0, -4);
         }
         if (sensor.get_type() == JUST_SWITCH)
         {

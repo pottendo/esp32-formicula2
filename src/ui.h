@@ -58,7 +58,8 @@ typedef enum
     UI_ALARM
 } ui_modes_t;
 
-typedef enum {
+typedef enum
+{
     UI_STATUS = 0,
     UI_CTRLS,
     UI_CFG1,
@@ -82,9 +83,9 @@ public:
 class uiElements
 {
     lv_obj_t *tab_view;
-    lv_obj_t *tabs[5];      /* 5 UI tabs */
-    lv_obj_t *lastwidgets[5] = { nullptr, nullptr, nullptr, nullptr, nullptr };      /* remember last widget placed in tab to align next one */
-    lv_obj_t *modes[4];     /* 4 operation modes: SPLASH (startup), OPERATIONAL, SCREENSAVER, ALARM */
+    lv_obj_t *tabs[5];                                                        /* 5 UI tabs */
+    lv_obj_t *lastwidgets[5] = {nullptr, nullptr, nullptr, nullptr, nullptr}; /* remember last widget placed in tab to align next one */
+    lv_obj_t *modes[4];                                                       /* 4 operation modes: SPLASH (startup), OPERATIONAL, SCREENSAVER, ALARM */
     ui_modes_t act_mode;
     uiScreensaver saver;
     lv_obj_t *mwidget;
@@ -102,8 +103,22 @@ public:
     static void ui_task_wrapper(void *args);
     void ui_task(void);
 
-    inline bool manual(void) { bool b; P(mutex); b = do_manual; V(mutex); return b; }
-    inline bool play_sound(void) { bool b; P(mutex); b = do_sound; V(mutex); return b; }
+    inline bool manual(void)
+    {
+        bool b;
+        P(mutex);
+        b = do_manual;
+        V(mutex);
+        return b;
+    }
+    inline bool play_sound(void)
+    {
+        bool b;
+        P(mutex);
+        b = do_sound;
+        V(mutex);
+        return b;
+    }
 
     void add2ui(ui_tabs_t t, lv_obj_t *e, int dx = 0, int dy = 0);
     inline lv_obj_t *get_tab(ui_tabs_t t) { return tabs[t]; }
@@ -251,7 +266,8 @@ public:
 
     inline void store(T x, I y)
     {
-        if (top >= size) items[999] = new pair(x, y);        /* panic here */
+        if (top >= size)
+            items[999] = new pair(x, y); /* panic here */
         items[top++] = new pair(x, y);
         //printf("hash %p(%d) stores value for %p\n", this, top, x);
     }
@@ -325,6 +341,8 @@ public:
     {
         area = lv_obj_create(ui->get_tab(t), NULL);
         lv_obj_set_size(area, w, h);
+        lv_obj_set_style_local_bg_color(area, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_MAKE(0xc0, 0xc0, 0xc0));
+
         lv_obj_t *l = lv_label_create(area, NULL);
         lv_label_set_text(l, label);
         lv_obj_align(l, area, LV_ALIGN_IN_LEFT_MID, 0, 0);
