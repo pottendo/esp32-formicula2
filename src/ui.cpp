@@ -282,7 +282,7 @@ slider_label_c::slider_label_c(uiElements *ui, ui_tabs_t t, genCircuit *c, myRan
     lv_slider_set_value(slider, range.get_ubound() * 100, LV_ANIM_ON);
 
     /* slider label */
-    snprintf(b, 64, "%s:%s", (is_day ? "#7f7f7f T" : "#0000ff N"), c->get_name().c_str());
+    snprintf(b, 64, "%s", (is_day ? c->get_name().c_str(): ""));
     label = lv_label_create(area, NULL);
     lv_label_set_recolor(label, true);
     lv_label_set_text(label, b);
@@ -291,13 +291,15 @@ slider_label_c::slider_label_c(uiElements *ui, ui_tabs_t t, genCircuit *c, myRan
 
     /* Create a label for ranges above the slider */
     slider_up_label = lv_label_create(area, NULL);
-    snprintf(b, 8, "%.2f", range.get_ubound());
+    lv_label_set_recolor(slider_up_label, true);
+    snprintf(b, 64, "%s%.2f", (is_day ? "" : "#0000ff "), range.get_ubound());
     lv_label_set_text(slider_up_label, b);
     lv_obj_set_auto_realign(slider_up_label, true);
     lv_obj_align(slider_up_label, slider, LV_ALIGN_OUT_TOP_RIGHT, 0, -5);
 
     slider_down_label = lv_label_create(area, NULL);
-    snprintf(b, 10, "%.2f--", range.get_lbound());
+    lv_label_set_recolor(slider_down_label, true);
+    snprintf(b, 64, "%s%.2f-", (is_day ? "" : "#0000ff "), range.get_lbound());
     lv_label_set_text(slider_down_label, b);
     lv_obj_set_auto_realign(slider_down_label, true);
     lv_obj_align(slider_down_label, slider_up_label, LV_ALIGN_OUT_LEFT_MID, 0, 0);
@@ -307,11 +309,12 @@ void slider_label_c::cb(lv_event_t e)
 {
     if (e == LV_EVENT_VALUE_CHANGED)
     {
-        static char buf[10];
-        snprintf(buf, 8, "%.2f", static_cast<float>(lv_slider_get_value(slider)) / 100);
+        static char buf[64];
+        const char *col = (is_day ? "" : "#0000ff ");
+        snprintf(buf, 64, "%s%.2f", col, static_cast<float>(lv_slider_get_value(slider)) / 100);
         lv_label_set_text(slider_up_label, buf);
         range.set_ubound(static_cast<float>(lv_slider_get_value(slider)) / 100);
-        snprintf(buf, 10, "%.2f--", static_cast<float>(lv_slider_get_left_value(slider)) / 100);
+        snprintf(buf, 64, "%s%.2f-", col, static_cast<float>(lv_slider_get_left_value(slider)) / 100);
         lv_label_set_text(slider_down_label, buf);
         range.set_lbound(static_cast<float>(lv_slider_get_left_value(slider)) / 100);
     }

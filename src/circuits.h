@@ -44,7 +44,7 @@ public:
         {
             ui->add2ui(UI_CFG1, (slider_day =
                                      new slider_label_c(ui, UI_CFG1, this, range_day, dr, 200, 50))
-                                    ->get_area());
+                                    ->get_area(), 0, 10);
             ui->add2ui(UI_CFG1, (slider_night =
                                      new slider_label_c(ui, UI_CFG1, this, range_night, dr, 200, 50, false))
                                     ->get_area());
