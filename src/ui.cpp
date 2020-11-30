@@ -45,6 +45,10 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
     hum_meter = new analogMeter(this, UI_STATUS, "Feuchtigkeit", ctrl_humrange, "\%");
     add2ui(UI_STATUS, hum_meter->get_area());
 
+    update_url = lv_label_create(tabs[UI_CFG2], NULL);
+    lv_label_set_text(update_url, String("http://" + WiFi.localIP().toString() + ":8080/update").c_str());
+    add2ui(UI_CFG2, update_url);
+
     time_widget = lv_label_create(tabs[UI_CFG2], NULL);
     lv_label_set_text(time_widget, "Time: ");
     add2ui(UI_CFG2, time_widget);
@@ -96,6 +100,10 @@ void uiElements::update()
     struct tm t;
     static char buf[64];
     saver.update();
+
+    // update update URL
+    lv_label_set_text(update_url, String("http://" + WiFi.localIP().toString() + ":8080/update").c_str());
+
     // update time widget
     time_obj->get_time(&t);
     strftime(buf, 64, "Time: %a, %b %d %Y %H:%M:%S", &t);
@@ -110,6 +118,7 @@ void uiElements::ui_task(void)
     printf("ui-task launched...\n");
     while (1)
     {
+        loop_OTA();
         int res = biohazard_alarm();
         delay(res);
     }

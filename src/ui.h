@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <WString.h>
+#include <WebServer.h>
 
 #define MUT_EXCL
 #ifdef MUT_EXCL
@@ -40,6 +41,9 @@ extern int glob_delay;
 
 void setup_wifi(void);
 void loop_wifi(void);
+//void setup_OTA(WebServer *s);
+void setup_OTA(void);
+void loop_OTA();
 
 template <typename T>
 class myRange; // forward declaration
@@ -91,6 +95,7 @@ class uiElements
     lv_obj_t *mwidget;
     lv_obj_t *time_widget;
     lv_obj_t *load_widget;
+    lv_obj_t *update_url;
     const int buzzer_channel = 0;
     SemaphoreHandle_t mutex;
     bool do_sound = false;
