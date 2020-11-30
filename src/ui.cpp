@@ -99,10 +99,15 @@ void uiElements::update()
 {
     struct tm t;
     static char buf[64];
+    static bool ip_initialized = false;
     saver.update();
 
-    // update update URL
-    lv_label_set_text(update_url, String("http://" + WiFi.localIP().toString() + ":8080/update").c_str());
+    // update update URL widget only once.
+    if (!ip_initialized)
+    {
+        lv_label_set_text(update_url, String("http://" + WiFi.localIP().toString() + ":8080/update").c_str());
+        ip_initialized = true;
+    }
 
     // update time widget
     time_obj->get_time(&t);

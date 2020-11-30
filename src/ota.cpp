@@ -1,18 +1,22 @@
 #include <AsyncElegantOTA.h>
+
+// to update connect to http://<IP_ADDRESS>:8080/update
 static AsyncWebServer server(8080);
 
-void setup_OTA(void) {
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(200, "text/plain", "Hi! I am Formical CC Update Server");
-  });
+void setup_OTA(void)
+{
+    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->send(200, "text/plain", "Hi! I am Formicula Control Center Update Server");
+    });
 
-  AsyncElegantOTA.begin(&server);    // Start ElegantOTA
-  server.begin();
-  printf("Async OTA update server started...\n");
+    AsyncElegantOTA.begin(&server); // Start ElegantOTA
+    server.begin();
+    printf("Async OTA update server started...\n");
 }
 
-void loop_OTA(void) {
-  AsyncElegantOTA.loop();
+void loop_OTA(void)
+{
+    AsyncElegantOTA.loop();
 }
 #if 0
 

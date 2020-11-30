@@ -40,10 +40,10 @@ extern myRange<struct tm> def_day;
 extern int glob_delay;
 
 void setup_wifi(void);
-void loop_wifi(void);
+//void loop_wifi(void);
 //void setup_OTA(WebServer *s);
 void setup_OTA(void);
-void loop_OTA();
+void loop_OTA(void);
 
 template <typename T>
 class myRange; // forward declaration
