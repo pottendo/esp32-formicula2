@@ -4,6 +4,7 @@
 #include <DHTesp.h>
 #include <list>
 #include <array>
+#include <ESP32Servo.h>
 
 class avgDHT; /* forware declaration */
 
@@ -55,15 +56,15 @@ class ioSwitch
 {
     uint8_t pin;
     bool invers;
-    uint8_t mode;
-    const String on{"on"};
-    const String off{"off"};
 
 public:
-    ioSwitch(uint8_t gpio, bool i = false, uint8_t m = OUTPUT) : pin(gpio), invers(i), mode(m) { pinMode(pin, m); }
+    ioSwitch(uint8_t gpio, bool i = false) : pin(gpio), invers(i) {}
     ~ioSwitch() = default;
 
-    inline int state() { return digitalRead(pin); }
+    virtual void _set(uint8_t pin, int val) = 0;
+    virtual int _state(uint8_t pin) = 0;
+    virtual const String to_string(void) = 0;
+    inline int state() { return _state(pin); }
     inline int set(uint8_t n, bool ign_invers = false)
     {
         int res = state();
@@ -71,7 +72,7 @@ public:
         {
             n = (n == HIGH) ? LOW : HIGH;
         }
-        digitalWrite(pin, n);
+        _set(pin, n);
         return res;
     }
     inline int toggle()
@@ -80,14 +81,73 @@ public:
         set((res == LOW) ? HIGH : LOW);
         return res;
     }
-    const String &to_string(void)
+
+    inline bool is_invers(void) { return invers; }
+};
+
+class ioDigitalIO : public ioSwitch
+{
+    const String on{"on"};
+    const String off{"off"};
+
+public:
+    ioDigitalIO(uint8_t pin, bool i = false, uint8_t m = OUTPUT) : ioSwitch(pin, i) { pinMode(pin, m); }
+    ~ioDigitalIO() = default;
+
+    void _set(uint8_t pin, int v) override
+    {
+        digitalWrite(pin, v);
+        //printf("digital write IO%d = %d\n", pin, v);
+    }
+    int _state(uint8_t pin) override
+    {
+        return digitalRead(pin);
+    }
+
+    const String to_string(void) override
     {
         int s = state();
         //        if (invers)
         //            return ((s == HIGH) ? off : on);
         return ((s == HIGH) ? on : off);
     }
-    inline bool is_invers(void) { return invers; }
+};
+
+class ioServo : public ioSwitch
+{
+    Servo *servo;
+    int low, high;
+
+public:
+    ioServo(uint8_t pin, bool i = false, int l = 0, int h = 180) : ioSwitch(pin, i), low(l), high(h)
+    {
+        servo = new Servo;
+#if 0
+        ESP32PWM::allocateTimer(0);
+        ESP32PWM::allocateTimer(1);
+        ESP32PWM::allocateTimer(2);
+        ESP32PWM::allocateTimer(3);
+#endif
+        servo->setPeriodHertz(50);
+        servo->attach(pin, 50, 2400);
+    }
+
+    void _set(uint8_t pin, int v) override
+    {
+        int val = map(v, LOW, HIGH, low, high);
+        //printf("servo write IO%d = %d\n", pin, val);
+        servo->write(val);
+    }
+
+    int _state(uint8_t pin) override
+    {
+        return servo->read();
+    }
+
+    const String to_string(void) override
+    {
+        return String(state());
+    }
 };
 
 typedef enum

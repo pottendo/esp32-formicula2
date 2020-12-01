@@ -16,13 +16,15 @@ static myDHT *th1, *th2;
 static tempSensor *tsensor_berg, *tsensor_erde;
 static humSensor *hsensor_berg, *hsensor_erde;
 static timeSwitch *tswitch;
-static ioSwitch *io_tswitch, *io_infrared, *io_heater, *io_fan, *io_fog, *io_spare2;
+static ioDigitalIO *io_tswitch, *io_infrared, *io_heater, *io_fan, *io_fog /*, *io_spare2*/;
+static ioServo *io_humswitch;
 static myCircuit<timeSwitch> *circuit_timeswitch;
 static myCircuit<tempSensor> *circuit_infrared;
 static myCircuit<tempSensor> *circuit_heater;
 static myCircuit<humSensor> *circuit_fan;
 static myCircuit<humSensor> *circuit_fog;
 static myCircuit<humSensor> *circuit_fog2;
+static myCircuit<humSensor> *circuit_dhum;
 //static myCircuit<tempSensor> *circuit_spare2;
 
 static uiElements *ui;
@@ -30,7 +32,7 @@ static uiElements *ui;
 void setup()
 {
     Serial.begin(115200);
-    Serial.printf("Formicula control(OTA) - V1.0\n");
+    Serial.printf("Formicula control(OTA) - V1.1\n");
 
     init_lvgl();
     ui = setup_ui(ui_ss_timeout);
@@ -45,12 +47,14 @@ void setup()
     hsensor_berg = new humSensor(std::list<myDHT *>{th1});
     hsensor_erde = new humSensor(std::list<myDHT *>{th2});
 
-    io_tswitch = new ioSwitch(27);
-    io_infrared = new ioSwitch(12);
-    io_heater = new ioSwitch(26);
-    io_fan = new ioSwitch(16, true); // inverse logic for fan
-    io_fog = new ioSwitch(32);
-    io_spare2 = new ioSwitch(25);
+    io_tswitch = new ioDigitalIO(27);
+    io_infrared = new ioDigitalIO(12);
+    io_heater = new ioDigitalIO(26);
+    io_fan = new ioDigitalIO(16, true); // inverse logic for fan
+    io_fog = new ioDigitalIO(32);
+    //io_spare2 = new ioDigitalIO(25);
+
+    io_humswitch = new ioServo(25, false, 0, 120);      /* should be 14, once HW is ready FIXME */
 
     circuit_timeswitch =
         new myCircuit<timeSwitch>(ui, "Zeitschalter", *tswitch, *io_tswitch,
@@ -89,6 +93,14 @@ void setup()
                                  myRange<float>{65.0, 80.0},
                                  myRange<float>{65.0, 80.0},
                                  ctrl_humrange);
+    circuit_dhum = 
+        new myCircuit<humSensor>(ui, "Feuchtigkeit", *hsensor_erde, *io_humswitch,
+                                 5,
+                                 myRange<float>{65.0, 80.0},
+                                 myRange<float>{65.0, 80.0},
+                                 ctrl_humrange);
+
+
     ui->set_mode(UI_OPERATIONAL);
 #if 0
     circuit_spare2 = new myCircuit<tempSensor>(String("Spare2"), *tsensor, *io_spare2, 4);

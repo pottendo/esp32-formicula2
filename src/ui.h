@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <WString.h>
-#include <WebServer.h>
 
 #define MUT_EXCL
 #ifdef MUT_EXCL
@@ -41,6 +40,7 @@ extern int glob_delay;
 
 void setup_wifi(void);
 //void loop_wifi(void);
+//#include <WebServer.h>
 //void setup_OTA(WebServer *s);
 void setup_OTA(void);
 void loop_OTA(void);
@@ -96,7 +96,7 @@ class uiElements
     lv_obj_t *time_widget;
     lv_obj_t *load_widget;
     lv_obj_t *update_url;
-    const int buzzer_channel = 0;
+    const int buzzer_channel = 8;
     SemaphoreHandle_t mutex;
     bool do_sound = false;
     bool do_manual = false;

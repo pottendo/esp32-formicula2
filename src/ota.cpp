@@ -1,6 +1,140 @@
-#include <AsyncElegantOTA.h>
+#include <ESPAsyncWebServer.h>
+#include <Update.h>
+#include "ui.h"
 
-// to update connect to http://<IP_ADDRESS>:8080/update
+// to update connect to http://<IP_ADDRESS>:8080/OTA
+static AsyncWebServer server(8080);
+
+static String style =
+    "<style>#file-input,input{width:100%;height:44px;border-radius:4px;margin:10px auto;font-size:15px}"
+    "input{background:#f1f1f1;border:0;padding:0 15px}body{background:#3498db;font-family:sans-serif;font-size:14px;color:#777}"
+    "#file-input{padding:0;border:1px solid #ddd;line-height:44px;text-align:left;display:block;cursor:pointer}"
+    "#bar,#prgbar{background-color:#f1f1f1;border-radius:10px}#bar{background-color:#3498db;width:0%;height:10px}"
+    "form{background:#fff;max-width:258px;margin:75px auto;padding:30px;border-radius:5px;text-align:center}"
+    ".btn{background:#3498db;color:#fff;cursor:pointer}</style>";
+
+/* Login page */
+static String loginIndex =
+    "<form name=loginForm>"
+    "<h1>Formicula Control Center Upload Login</h1>"
+    "<input name=userid placeholder='User ID'> "
+    "<input name=pwd placeholder=Password type=Password> "
+    "<input type=submit onclick=check(this.form) class=btn value=Login></form>"
+    "<script>"
+    "function check(form) {"
+    "if(form.userid.value=='admin' && form.pwd.value=='admin')"
+    "{window.open('/serverIndex')}"
+    "else"
+    "{alert('Error Password or Username')}"
+    "}"
+    "</script>" +
+    style;
+
+/* Server Index Page */
+
+static String serverIndex =
+    "<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js'></script>"
+    "<form method='POST' action='#' enctype='multipart/form-data' id='upload_form'>"
+    "<h1>Formicula Control Center Select & Upload</h1>"
+    "<input type='file' name='update'>"
+    "<input type='submit' value='Update'>"
+    "</form>"
+    "<div id='prg'>progress: 0%</div>"
+    "<script>"
+    "$('form').submit(function(e){"
+    "e.preventDefault();"
+    "var form = $('#upload_form')[0];"
+    "var data = new FormData(form);"
+    " $.ajax({"
+    "url: '/update',"
+    "type: 'POST',"
+    "data: data,"
+    "contentType: false,"
+    "processData:false,"
+    "xhr: function() {"
+    "var xhr = new window.XMLHttpRequest();"
+    "xhr.upload.addEventListener('progress', function(evt) {"
+    "if (evt.lengthComputable) {"
+    "var per = evt.loaded / evt.total;"
+    "$('#prg').html('progress: ' + Math.round(per*100) + '%');"
+    "}"
+    "}, false);"
+    "return xhr;"
+    "},"
+    "success:function(d, s) {"
+    "console.log('success!')"
+    "},"
+    "error: function (a, b, c) {"
+    "}"
+    "});"
+    "});"
+    "</script>" +
+    style;
+
+void setup_OTA(void)
+{
+    server.on("/", HTTP_GET, [](AsyncWebServerRequest *req) {
+        req->send(200, "text/plain", "Welcome to the Formicula Control Center");
+    });
+    server.on(
+        "/OTA", HTTP_GET,
+        [](AsyncWebServerRequest *req) {
+            req->send(200, "text/html", loginIndex);
+        });
+    server.on(
+        "/serverIndex", HTTP_GET,
+        [](AsyncWebServerRequest *req) {
+            req->send(200, "text/html", serverIndex);
+        });
+    server.on(
+        "/update", HTTP_POST,
+        [](AsyncWebServerRequest *req) {
+            req->send(200, "text/plain", "/update POST received.");
+            if (Update.hasError())
+            {
+                log_msg("/update - something weng wrong");
+                Update.printError(Serial);
+            }
+            else
+            {
+                log_msg("successfully flashed via OTA - rebooting...");
+                ESP.restart();
+            }
+        },
+        [](AsyncWebServerRequest *req, const String &fn, size_t index, uint8_t *data, size_t len, bool end) {
+            if (!index)
+            {
+                //                printf("update - 2: %s, index = %d, len = %d, end = %d, data[0] = %0x\n", fn.c_str(), index, len, end, data[0]);
+                log_msg("/update start upload of " + fn);
+                if (!Update.begin(UPDATE_SIZE_UNKNOWN))
+                {
+                    Update.printError(Serial);
+                    return;
+                }
+            }
+            /* flashing firmware to ESP*/
+            //                printf("upload: name=%s, fullsize=%d, current size = %d - data[0] = %0x\n", fn.c_str(), index, len, data[0]);
+            if (Update.write(data, len) != len)
+                Update.printError(Serial);
+            if (end)
+            {
+                log_msg("/upload completed for " + fn + " - " + String(index + len) + "bytes.");
+                if (Update.end(true))
+                    log_msg("/update Success: " + fn + " - " + String(index + len) + "bytes.");
+                else
+                    Update.printError(Serial);
+            }
+        });
+
+    server.begin();
+    log_msg("Async OTA update server started...");
+}
+
+void loop_OTA(void)
+{
+}
+#ifdef ASYNCELOTA
+#include <AsyncElegantOTA.h>
 static AsyncWebServer server(8080);
 
 void setup_OTA(void)
@@ -18,6 +152,7 @@ void loop_OTA(void)
 {
     AsyncElegantOTA.loop();
 }
+#endif
 #if 0
 
 #include <WebServer.h>

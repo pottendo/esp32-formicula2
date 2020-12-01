@@ -1,4 +1,5 @@
 #include <time.h>
+#include <WiFi.h>
 #include "ui.h"
 #include "circuits.h"
 
@@ -65,9 +66,10 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
     /* update screensaver, status widgets periodically per 1s */
     lv_task_create(update_task, 1000, LV_TASK_PRIO_LOWEST, this);
 
-    /* lvgl independent stuff */
+    /* lvgl independent stuff - NOT USED NOW FIXME * /
     TaskHandle_t handle;
     xTaskCreate(ui_task_wrapper, "ui-task helper", 4000, this, configMAX_PRIORITIES - 1, &handle);
+    */
 }
 
 void uiElements::ui_task_wrapper(void *obj)
@@ -105,7 +107,7 @@ void uiElements::update()
     // update update URL widget only once.
     if (!ip_initialized)
     {
-        lv_label_set_text(update_url, String("http://" + WiFi.localIP().toString() + ":8080/update").c_str());
+        lv_label_set_text(update_url, String("http://" + WiFi.localIP().toString() + ":8080/OTA").c_str());
         ip_initialized = true;
     }
 
@@ -164,7 +166,7 @@ int uiElements::biohazard_alarm(void)
         ledcWrite(buzzer_channel, 125); /* duty cycle ~50% */
         /* attach PWM for soft blinking backlight */
         ledcAttachPin(TFT_LED, 1);
-        ledcSetup(1, 0, 12); /* hardware PWM channel 1 */
+        ledcSetup(buzzer_channel + 1, 0, 8); /* hardware PWM channel 1 */
         pitch = 400;
         mode = 0;
         brightness = 0;
@@ -199,7 +201,7 @@ int uiElements::biohazard_alarm(void)
         brightness -= bdelta;
         bdir *= -1;
     }
-    ledcWrite(1, brightness);
+    ledcWrite(buzzer_channel + 1, brightness);
 
     return 5;
 }
@@ -264,7 +266,7 @@ void button_label_c::cb(lv_event_t e)
 
 void button_label_c::set(uint8_t v)
 {
-    if (v == HIGH)
+    if (v)      /* any value of servo > 0 is 'on' - FIXME */
         lv_switch_on(obj, LV_ANIM_ON);
     else
         lv_switch_off(obj, LV_ANIM_ON);
@@ -431,8 +433,8 @@ void uiScreensaver::update()
         (hum_meter->get_val() < ctrl_humrange.get_lbound()) ||
         (hum_meter->get_val() > ctrl_humrange.get_ubound()))
     {
-        //int t = digitalRead(TFT_LED);
-        //digitalWrite(TFT_LED, (t == HIGH) ? LOW : HIGH);
+        int t = digitalRead(TFT_LED);
+        digitalWrite(TFT_LED, (t == HIGH) ? LOW : HIGH);
         ui->set_mode(UI_ALARM);
         glob_delay = 5;
 
