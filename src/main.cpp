@@ -88,7 +88,7 @@ void setup()
                                   myRange<float>{24.0, 27.0},
                                   ctrl_temprange);
     circuit_heater =
-        new myCircuit<tempSensor>(ui, "Heizmatte", *tsensor_erde, *io_infrared,
+        new myCircuit<tempSensor>(ui, "Heizmatte", *tsensor_erde, *io_heater,
                                   5,
                                   myRange<float>{27.0, 28.0},
                                   myRange<float>{27.0, 28.0},
