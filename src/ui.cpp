@@ -84,10 +84,9 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
     /* update screensaver, status widgets periodically per 1s */
     lv_task_create(update_task, 1000, LV_TASK_PRIO_LOWEST, this);
 
-    /* lvgl independent stuff - NOT USED NOW FIXME * /
+    /* lvgl independent stuff - NOT USED NOW FIXME */
     TaskHandle_t handle;
     xTaskCreate(ui_task_wrapper, "ui-task helper", 4000, this, configMAX_PRIORITIES - 1, &handle);
-    */
 }
 
 void uiElements::ui_task_wrapper(void *obj)
@@ -143,7 +142,8 @@ void uiElements::ui_task(void)
     printf("ui-task launched...\n");
     while (1)
     {
-        loop_OTA();
+        //loop_wifi();
+        //loop_OTA();
         int res = biohazard_alarm();
         delay(res);
     }
@@ -175,16 +175,17 @@ int uiElements::biohazard_alarm(void)
     /* setup Buzzer */
     if (!initialized)
     {
-        /* attach PWM for buzzer sound */
+        /* setup & attach PWM for buzzer sound */
+        ledcSetup(buzzer_channel, 0, 8);
+        ledcWrite(buzzer_channel, 125); /* duty cycle ~50% */
         if (play_sound())
         {
             ledcAttachPin(BUZZER_PIN, buzzer_channel);
         }
-        ledcSetup(buzzer_channel, 0, 8);
-        ledcWrite(buzzer_channel, 125); /* duty cycle ~50% */
-        /* attach PWM for soft blinking backlight */
-        ledcAttachPin(TFT_LED, 1);
-        ledcSetup(buzzer_channel + 1, 0, 8); /* hardware PWM channel 1 */
+        /* setup & attach PWM for soft blinking backlight */
+        ledcSetup(bgled_channel, 4000, 10);  /* hardware PWM channel 1 */
+        ledcWrite(bgled_channel, 255);      /* full brightness */
+        ledcAttachPin(TFT_LED, bgled_channel);
         pitch = 400;
         mode = 0;
         brightness = 0;
@@ -219,7 +220,7 @@ int uiElements::biohazard_alarm(void)
         brightness -= bdelta;
         bdir *= -1;
     }
-    ledcWrite(buzzer_channel + 1, brightness);
+    ledcWrite(bgled_channel, brightness);
 
     return 5;
 }
@@ -451,8 +452,8 @@ void uiScreensaver::update()
         (hum_meter->get_val() < ctrl_humrange.get_lbound()) ||
         (hum_meter->get_val() > ctrl_humrange.get_ubound()))
     {
-        int t = digitalRead(TFT_LED);
-        digitalWrite(TFT_LED, (t == HIGH) ? LOW : HIGH);
+        //int t = digitalRead(TFT_LED);
+        //digitalWrite(TFT_LED, (t == HIGH) ? LOW : HIGH);
         ui->set_mode(UI_ALARM);
         glob_delay = 5;
 

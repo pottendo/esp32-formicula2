@@ -57,11 +57,11 @@ extern myRange<struct tm> def_day;
 extern int glob_delay;
 
 void setup_wifi(void);
-//void loop_wifi(void);
+void loop_wifi(void);
 //#include <WebServer.h>
 //void setup_OTA(WebServer *s);
-void setup_OTA(void);
-void loop_OTA(void);
+//void setup_OTA(void);
+//void loop_OTA(void);
 
 template <typename T>
 class myRange; // forward declaration
@@ -115,6 +115,7 @@ class uiElements
     lv_obj_t *load_widget;
     lv_obj_t *update_url;
     const int buzzer_channel = 8;
+    const int bgled_channel = buzzer_channel + 1;
     SemaphoreHandle_t mutex;
     bool do_sound = false;
     bool do_manual = false;

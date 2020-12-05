@@ -50,14 +50,14 @@ static uiElements *ui;
 void setup()
 {
     Serial.begin(115200);
-    Serial.printf("Formicula control(OTA) - V1.1\n");
+    Serial.printf("Formicula control(AC OTA) - V1.1\n");
 
     init_lvgl();
     ui = setup_ui(ui_ss_timeout);
     setup_wifi();
-    setup_OTA();
-    th1 = new myDHT("Berg", 17, ui);
-    th2 = new myDHT("Erde", 13, ui);
+    //setup_OTA();
+    th1 = new myDHT("Berg", 17, ui, DHTesp::DHT22);
+    th2 = new myDHT("Erde", 13, ui, DHTesp::DHT22);
     tswitch = new timeSwitch();
     tsensor_berg = new tempSensor(std::list<myDHT *>{th1}); // kreis "Infrarot"
     tsensor_erde = new tempSensor(std::list<myDHT *>{th2}); // kreis "Heizmatte"
@@ -72,7 +72,7 @@ void setup()
     io_fog = new ioDigitalIO(32);
     //io_spare2 = new ioDigitalIO(25);
 
-    io_humswitch = new ioServo(25, false, 0, 120);      /* should be 14, once HW is ready FIXME */
+    io_humswitch = new ioServo(14, false, 0, 120);      /* should be 14, once HW is ready FIXME */
 
     circuit_timeswitch =
         new myCircuit<timeSwitch>(ui, "Zeitschalter", *tswitch, *io_tswitch,
@@ -128,7 +128,7 @@ void setup()
 void loop()
 {
 //    server.handleClient();
-//    loop_wifi();
+    loop_wifi();
 
     lv_task_handler(); // all tasks (incl. sensors) are managed by lvgl!
     delay(glob_delay);

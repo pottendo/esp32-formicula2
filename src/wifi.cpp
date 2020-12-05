@@ -29,6 +29,7 @@ myTime *time_obj;
 
 static WebServer ip_server;
 static AutoConnect portal(ip_server);
+static AutoConnectConfig config;
 
 myTime::myTime()
 {
@@ -60,6 +61,8 @@ void setup_wifi(void)
 {
     log_msg("Setting up Wifi...");
     ip_server.on("/", rootPage);
+    config.ota = AC_OTA_BUILTIN;
+    portal.config(config);
     if (portal.begin())
     {
         Serial.println("WiFi connected: " + WiFi.localIP().toString());
@@ -74,5 +77,5 @@ void setup_wifi(void)
 
 void loop_wifi(void)
 {
-    //ip_server.handleClient();
+    portal.handleClient();
 }
