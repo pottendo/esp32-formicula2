@@ -55,7 +55,7 @@ void setup()
     init_lvgl();
     ui = setup_ui(ui_ss_timeout);
     setup_wifi();
-    //setup_mqtt();
+    setup_mqtt(ui);
     th1 = new myDHT("Berg", 17, ui, DHTesp::DHT22);
     th2 = new myDHT("Erde", 13, ui, DHTesp::DHT22);
     tswitch = new timeSwitch();
@@ -127,10 +127,7 @@ void setup()
 
 void loop()
 {
-//    server.handleClient();
     loop_wifi();
-    //loop_mqtt();
-
     lv_task_handler(); // all tasks (incl. sensors) are managed by lvgl!
     delay(glob_delay);
 }

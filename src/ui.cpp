@@ -140,10 +140,12 @@ void uiElements::update()
 void uiElements::ui_task(void)
 {
     printf("ui-task launched...\n");
+    delay(500);
     while (1)
     {
         //loop_wifi();
         //loop_OTA();
+        loop_mqtt();
         int res = biohazard_alarm();
         delay(res);
     }
