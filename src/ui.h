@@ -58,6 +58,8 @@ extern int glob_delay;
 
 void setup_wifi(void);
 void loop_wifi(void);
+void setup_mqtt(void);
+void loop_mqtt(void);
 //#include <WebServer.h>
 //void setup_OTA(WebServer *s);
 //void setup_OTA(void);

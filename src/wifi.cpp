@@ -21,6 +21,7 @@
 #include <WebServer.h>
 #include <AutoConnectOTA.h>
 #include <AutoConnect.h>
+#include <ESPmDNS.h>
 
 #include "ui.h"
 #include "wifi.h"
@@ -71,6 +72,10 @@ void setup_wifi(void)
     //init and get the time
     time_obj = new myTime();
 
+    if (!MDNS.begin("fcc"))
+    {
+        log_msg("Setup of DNS for fcc failed.");
+    }
     //setup_OTA(&ip_server);
     //ip_server.begin();
 }
