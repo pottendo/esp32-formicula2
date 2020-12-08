@@ -176,22 +176,56 @@ typedef enum
 
 class genSensor
 {
+    uiElements *ui;
     const sens_type_t type;
+    String name;
+
+protected:
+    SemaphoreHandle_t mutex;
 
 public:
-    genSensor(const sens_type_t t = REAL_SENSOR) : type(t) {}
+    genSensor(uiElements *ui, const sens_type_t t = REAL_SENSOR, String n = "<NONAME>") : ui(ui), type(t), name(String{n})
+    {
+        mutex = xSemaphoreCreateMutex();
+        V(mutex);
+        if (type == REAL_SENSOR)    /* don't register switch sensors (yet) */
+            ui->register_sensor(this);
+    }
     ~genSensor() = default;
 
     sens_type_t get_type() { return type; }
+    String get_name() { return name; };
+    bool operator==(const String s)
+    {
+        return name == s;
+    }
+    virtual float get_data(void) = 0;
+    virtual void _add_data(float v) = 0;
+    virtual void add_data(float v)
+    {
+        P(mutex);
+        _add_data(v);
+        V(mutex);
+    }
+    virtual void update_data(float v)
+    {
+        add_data(v);
+    }
+    virtual void update_display(void)
+    {
+        if (type == REAL_SENSOR)
+            ui->update_sensor(this);
+    }
 };
 
 class timeSwitch : public genSensor
 {
 public:
-    timeSwitch() : genSensor(JUST_SWITCH) {}
+    timeSwitch(uiElements *ui, const char *n = "<TimeSwitch>") : genSensor(ui, JUST_SWITCH, n) {}
     ~timeSwitch() = default;
 
-    float get_data(void) { return -1.0; }
+    virtual float get_data(void) override { return 0; } 
+    virtual void _add_data(float v) override { return; }
 };
 
 class avgDHT : public genSensor
@@ -201,11 +235,10 @@ protected:
     std::array<float, sample_no> data;
     int act_ind;
     std::list<myDHT *> sensors;
-    const char *name;
-    SemaphoreHandle_t mutex;
 
 public:
-    avgDHT(const sens_type_t t, std::list<myDHT *> dhts, const char *n = "avgDHT", float def_val = 0.0) : genSensor(t), act_ind(0), sensors(dhts), name(n)
+    avgDHT(uiElements *ui, const sens_type_t t, std::list<myDHT *> dhts, const char *n = "avgDHT", float def_val = 0.0)
+        : genSensor(ui, t, String{n}), act_ind(0), sensors(dhts)
     {
         mutex = xSemaphoreCreateMutex();
         for_each(dhts.begin(), dhts.end(),
@@ -217,16 +250,15 @@ public:
     ~avgDHT() = default;
 
     virtual void update_data(myDHT *) = 0;
-    virtual void update_display(float) = 0;
-    const char *get_name() { return name; };
-    void add_data(float d)
+    //    virtual void update_display(float) = 0;
+    virtual void _add_data(float d) override
     {
         P(mutex);
         data[act_ind] = d;
         act_ind = ((act_ind + 1) % sample_no);
         V(mutex);
     }
-    float get_data()
+    float get_data() override
     {
         float res = 0.0;
         P(mutex);
@@ -248,7 +280,7 @@ public:
         for (int i = 2; i < sample_no - 2; i++)
             res = res + s[i];
         res = res / (sample_no - 4);
-        update_display(res);
+        //        update_display(res);
         return res;
     }
 };
@@ -256,33 +288,72 @@ public:
 class tempSensor : public avgDHT
 {
 public:
-    tempSensor(std::list<myDHT *> dhts, const char *n = "TempSensor") : avgDHT(REAL_SENSOR, dhts, n, 5.0) {}
+    tempSensor(uiElements *ui, std::list<myDHT *> dhts, const char *n = "<LocalTempSensor>") : avgDHT(ui, REAL_SENSOR, dhts, n, 25.0) {}
     virtual ~tempSensor() = default;
 
     void update_data(myDHT *s) override
     {
         add_data(s->get_temp());
+        update_display();
     }
+#if 0
     void update_display(float v)
     {
         temp_meter->set_val(v);
     }
+#endif
 };
+
 class humSensor : public avgDHT
 {
 public:
-    humSensor(std::list<myDHT *> dhts, const char *n = "HumSensor") : avgDHT(REAL_SENSOR, dhts, n, 5.5) {}
+    humSensor(uiElements *ui, std::list<myDHT *> dhts, const char *n = "<LocalHumSensor>") : avgDHT(ui, REAL_SENSOR, dhts, n, 65.5) {}
     virtual ~humSensor() = default;
 
     void update_data(myDHT *s) override
     {
         add_data(s->get_hum());
+        update_display();
     }
-
+#if 0
     void update_display(float v)
     {
         hum_meter->set_val(v);
     }
+#endif
 };
 
+class remoteSensor : public genSensor
+{
+    float d;
+
+public:
+    remoteSensor(uiElements *ui, const char *n = "<RemoteSensor>", float def_val = -99.0) : genSensor(ui, REAL_SENSOR, String{n}), d(def_val)
+    {
+        mqtt_register_sensor(this);
+    };
+    virtual ~remoteSensor() = default;
+
+    virtual float get_data(void) override
+    {
+        float r;
+        P(mutex);
+        r = d;
+        V(mutex);
+        return r;
+    }
+
+    virtual void _add_data(float v)
+    {
+        d = v;
+    }
+    void update_data(float v)
+    {
+        add_data(v);
+        log_msg("Remote Sensor " + get_name() + " updated to " + String(get_data()));
+        update_display();
+        temp_meter->set_val(27.0);
+        hum_meter->set_val(77.0);
+    }
+};
 #endif

@@ -64,18 +64,21 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
     hum_meter = new analogMeter(this, UI_STATUS, "Feuchtigkeit", ctrl_humrange, "\%");
     add2ui(UI_STATUS, hum_meter->get_area());
 
-    update_url = lv_label_create(tabs[UI_CFG2], NULL);
-    lv_label_set_text(update_url, String("http://" + WiFi.localIP().toString() + ":8080/update").c_str());
-    add2ui(UI_CFG2, update_url);
-
     time_widget = lv_label_create(tabs[UI_CFG2], NULL);
     lv_label_set_text(time_widget, "Time: ");
     add2ui(UI_CFG2, time_widget);
+    fcce_widget = lv_label_create(tabs[UI_CFG2], NULL);
+    lv_label_set_recolor(fcce_widget, true);
+    lv_label_set_text(fcce_widget, "FCCE: ");
+    add2ui(UI_CFG2, fcce_widget);
     load_widget = lv_label_create(tabs[UI_CFG2], NULL);
     lv_label_set_text(load_widget, "Load: ");
     add2ui(UI_CFG2, load_widget);
+    update_url = lv_label_create(tabs[UI_CFG2], NULL);
+    lv_label_set_text(update_url, String("http://" + WiFi.localIP().toString() + ":/_ac").c_str());
+    add2ui(UI_CFG2, update_url);
 
-    add2ui(UI_CFG2, (new rangeSpinbox<myRange<struct tm>>(this, UI_CFG2, "Tag", def_day, 230, 72))->get_area());
+    add2ui(UI_CFG1, (new rangeSpinbox<myRange<struct tm>>(this, UI_CFG1, "Tag", def_day, 230, 72))->get_area());
 
     /* settings */
     add2ui(UI_SETTINGS, (new settingsButton(this, UI_SETTINGS, "Alarm Sound", do_sound, 230, 48))->get_area());
@@ -124,10 +127,19 @@ void uiElements::update()
     // update update URL widget only once.
     if (!ip_initialized)
     {
-        lv_label_set_text(update_url, String("http://" + WiFi.localIP().toString() + ":8080/OTA").c_str());
+        lv_label_set_text(update_url, String("http://" + WiFi.localIP().toString() + "/_ac").c_str());
         ip_initialized = true;
     }
 
+    // fcce alive
+    time_t now;
+    time(&now);
+    long diff = now - last_fcce_tick;
+    if (diff > 10)
+        snprintf(buf, 64, "#ff0000 FCCE last seen %lds ago", diff);
+    else
+        snprintf(buf, 64, "FCCE last seen %lds ago", diff);
+    lv_label_set_text(fcce_widget, buf);
     // update time widget
     time_obj->get_time(&t);
     strftime(buf, 64, "Time: %a, %b %d %Y %H:%M:%S", &t);
@@ -185,7 +197,7 @@ int uiElements::biohazard_alarm(void)
             ledcAttachPin(BUZZER_PIN, buzzer_channel);
         }
         /* setup & attach PWM for soft blinking backlight */
-        ledcSetup(bgled_channel, 4000, 10);  /* hardware PWM channel 1 */
+        ledcSetup(bgled_channel, 4000, 10); /* hardware PWM channel 1 */
         ledcWrite(bgled_channel, 255);      /* full brightness */
         ledcAttachPin(TFT_LED, bgled_channel);
         pitch = 400;
@@ -248,6 +260,38 @@ bool uiElements::check_manual(void)
     return true;
 }
 
+static tiny_hash_c<genSensor *, lv_obj_t *> sensor_widgets(10);
+void uiElements::register_sensor(genSensor *s)
+{
+    lv_obj_t *sensor_label = lv_label_create(tabs[UI_CFG2], NULL);
+    lv_label_set_recolor(sensor_label, true);
+    lv_label_set_text(sensor_label, "#ff0000 <not-yet-initialized>");
+    add2ui(UI_CFG2, sensor_label);
+    sensor_widgets.store(s, sensor_label);
+}
+
+void uiElements::update_sensor(genSensor *s)
+{
+    lv_obj_t *w = sensor_widgets.retrieve(s);
+    lv_label_set_text(w, (s->get_name() + ": " + String(s->get_data())).c_str());
+}
+
+void uiElements::update_config(String s)
+{
+    if (s == "/FCCE-alive")
+    {
+        time(&last_fcce_tick);
+        return;
+    }
+    log_msg("Update arrived: " + s);
+}
+
+void uiElements::set_switch(String s)
+{
+    log_msg("Setting switch via mqtt: " + s);
+}
+
+/* button with label widget */
 static tiny_hash_c<lv_obj_t *, button_label_c *> button_callbacks(10);
 static void button_cb_wrapper(lv_obj_t *obj, lv_event_t e)
 {
@@ -287,7 +331,7 @@ void button_label_c::cb(lv_event_t e)
 
 void button_label_c::set(uint8_t v)
 {
-    if (v)      /* any value of servo > 0 is 'on' - FIXME */
+    if (v) /* any value of servo > 0 is 'on' - FIXME */
         lv_switch_on(obj, LV_ANIM_ON);
     else
         lv_switch_off(obj, LV_ANIM_ON);

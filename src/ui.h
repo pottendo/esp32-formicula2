@@ -38,11 +38,13 @@
 //#define ALARM_SOUND
 #define BUZZER_PIN 21
 
+// forward declarations
 template <typename T>
 class myRange;
 class uiElements;
 class genCircuit;
 class uiScreensaver;
+class genSensor;
 
 /* prototypes */
 void init_lvgl(void);
@@ -58,8 +60,11 @@ extern int glob_delay;
 
 void setup_wifi(void);
 void loop_wifi(void);
-void setup_mqtt(uiElements *u);
+void setup_mqtt(uiElements *ui);
 void loop_mqtt(void);
+void mqtt_register_sensor(genSensor *s);
+void mqtt_register_circuit(genCircuit *s);
+
 //#include <WebServer.h>
 //void setup_OTA(WebServer *s);
 //void setup_OTA(void);
@@ -113,6 +118,7 @@ class uiElements
     ui_modes_t act_mode;
     uiScreensaver saver;
     lv_obj_t *mwidget;
+    lv_obj_t *fcce_widget;
     lv_obj_t *time_widget;
     lv_obj_t *load_widget;
     lv_obj_t *update_url;
@@ -121,6 +127,7 @@ class uiElements
     SemaphoreHandle_t mutex;
     bool do_sound = false;
     bool do_manual = false;
+    time_t last_fcce_tick;
 
 public:
     uiElements(int idle_time);
@@ -169,6 +176,11 @@ public:
     void update(void);
     bool check_manual(void);
     int biohazard_alarm(void);
+
+    void register_sensor(genSensor *s);
+    void update_sensor(genSensor *s);
+    void update_config(String s);
+    void set_switch(String s);
 };
 
 class uiCommons

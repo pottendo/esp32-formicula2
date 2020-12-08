@@ -33,7 +33,7 @@ public:
     ~genCircuit() = default;
 
     inline const String &get_name(void) { return circuit_name; }
-    virtual void io_set(uint8_t v, bool ign_inverse = false) = 0;
+    virtual void io_set(uint8_t v, bool ign_inverse = false, bool update_button = false) = 0;
     virtual myRange<float> &get_range(bool) = 0;
 };
 
@@ -60,18 +60,14 @@ public:
                                  ->get_area());
         if (sensor.get_type() == REAL_SENSOR)
         {
-            ui->add2ui(UI_CFG1, (slider_day =
-                                     new slider_label_c(ui, UI_CFG1, this, range_day, dr, 200, 50))
-                                    ->get_area(), 0, 10);
-            ui->add2ui(UI_CFG1, (slider_night =
-                                     new slider_label_c(ui, UI_CFG1, this, range_night, dr, 200, 50, false))
-                                    ->get_area(), 0, -4);
+            ui->add2ui(UI_CFG1, (slider_day = new slider_label_c(ui, UI_CFG1, this, range_day, dr, 200, 50))->get_area(), 0, 10);
+            ui->add2ui(UI_CFG1, (slider_night = new slider_label_c(ui, UI_CFG1, this, range_night, dr, 200, 50, false))->get_area(), 0, -4);
         }
         if (sensor.get_type() == JUST_SWITCH)
         {
-            ui->add2ui(UI_CFG2, (new rangeSpinbox<myRange<struct tm>>(ui, UI_CFG2, n.c_str(), duty_cycle, 230, 72))->get_area());
+            ui->add2ui(UI_CFG1, (new rangeSpinbox<myRange<struct tm>>(ui, UI_CFG1, n.c_str(), duty_cycle, 230, 72))->get_area());
         }
-
+        mqtt_register_circuit(this);
         circuit_task = lv_task_create(myCircuit::update_circuit, static_cast<uint32_t>(period * 1000), LV_TASK_PRIO_LOW, this);
         if (!circuit_task)
         {
@@ -85,7 +81,13 @@ public:
     ~myCircuit() = default;
 
     inline myRange<float> &get_range(bool day = true) override { return day ? range_day : range_night; }
-    void io_set(uint8_t v, bool ign_invers = false) override { io.set(v, ign_invers); }
+    void io_set(uint8_t v, bool ign_invers = false, bool update_button = false) override
+    {
+        log_msg("Circuit " + get_name() + " sets IO to " + String(v));
+        io.set(v, ign_invers);
+        if (update_button)
+            button->set(io.state());
+    }
 
     static void update_circuit(lv_task_t *t)
     {

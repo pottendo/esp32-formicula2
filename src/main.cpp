@@ -15,7 +15,7 @@
  * along with vice-mapper.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
- 
+
 #include <Arduino.h>
 
 #include "ui.h"
@@ -32,17 +32,21 @@ int glob_delay = 10;
 // module locals
 static myDHT *th1, *th2;
 static tempSensor *tsensor_berg, *tsensor_erde;
+static remoteSensor *trem1;
+static remoteSensor *hrem1;
 static humSensor *hsensor_berg, *hsensor_erde;
 static timeSwitch *tswitch;
 static ioDigitalIO *io_tswitch, *io_infrared, *io_heater, *io_fan, *io_fog /*, *io_spare2*/;
 static ioServo *io_humswitch;
-static myCircuit<timeSwitch> *circuit_timeswitch;
-static myCircuit<tempSensor> *circuit_infrared;
+static myCircuit<genSensor> *circuit_timeswitch;
+static myCircuit<genSensor> *circuit_infrared;
+/*
 static myCircuit<tempSensor> *circuit_heater;
 static myCircuit<humSensor> *circuit_fan;
 static myCircuit<humSensor> *circuit_fog;
 static myCircuit<humSensor> *circuit_fog2;
-static myCircuit<humSensor> *circuit_dhum;
+*/
+static myCircuit<genSensor> *circuit_dhum;
 //static myCircuit<tempSensor> *circuit_spare2;
 
 static uiElements *ui;
@@ -56,37 +60,42 @@ void setup()
     ui = setup_ui(ui_ss_timeout);
     setup_wifi();
     setup_mqtt(ui);
+#if 0    
     th1 = new myDHT("Berg", 17, ui, DHTesp::DHT22);
     th2 = new myDHT("Erde", 13, ui, DHTesp::DHT22);
-    tswitch = new timeSwitch();
     tsensor_berg = new tempSensor(std::list<myDHT *>{th1}); // kreis "Infrarot"
     tsensor_erde = new tempSensor(std::list<myDHT *>{th2}); // kreis "Heizmatte"
 
     hsensor_berg = new humSensor(std::list<myDHT *>{th1});
     hsensor_erde = new humSensor(std::list<myDHT *>{th2});
-
+#endif
+    tswitch = new timeSwitch(ui, "Tag/Nacht");
     io_tswitch = new ioDigitalIO(27);
     io_infrared = new ioDigitalIO(12);
     io_heater = new ioDigitalIO(26);
     io_fan = new ioDigitalIO(16, true); // inverse logic for fan
     io_fog = new ioDigitalIO(32);
     //io_spare2 = new ioDigitalIO(25);
-
-    io_humswitch = new ioServo(14, false, 0, 120);      /* should be 14, once HW is ready FIXME */
+    io_humswitch = new ioServo(14, false, 0, 120); 
 
     circuit_timeswitch =
-        new myCircuit<timeSwitch>(ui, "Zeitschalter", *tswitch, *io_tswitch,
+        new myCircuit<genSensor>(ui, "Zeitschalter", *tswitch, *io_tswitch,
                                   5,
                                   myRange<float>{0.0, 0.0},
                                   myRange<float>{0.0, 0.0},
                                   ctrl_temprange,
                                   *(new myRange<struct tm>{{0, 0, 7}, {0, 0, 22}}));
+
+    trem1 = new remoteSensor{ui, "/TempBerg1"};
+    hrem1 = new remoteSensor{ui, "/HumBerg1"};
+
     circuit_infrared =
-        new myCircuit<tempSensor>(ui, "Infrarot", *tsensor_berg, *io_infrared,
+        new myCircuit<genSensor>(ui, "Infrarot", *trem1, *io_infrared,
                                   5,
                                   myRange<float>{28.0, 29.0},
                                   myRange<float>{24.0, 27.0},
                                   ctrl_temprange);
+#if 0                                  
     circuit_heater =
         new myCircuit<tempSensor>(ui, "Heizmatte", *tsensor_erde, *io_heater,
                                   5,
@@ -94,7 +103,7 @@ void setup()
                                   myRange<float>{27.0, 28.0},
                                   ctrl_temprange);
     circuit_fan =
-        new myCircuit<humSensor>(ui, "Luefter", *hsensor_berg, *io_fan,
+        new myCircuit<humSensor>(ui, "Luefter", *hrem1, *io_fan,
                                  5,
                                  myRange<float>{65.0, 75.0},
                                  myRange<float>{65.0, 75.0},
@@ -111,13 +120,13 @@ void setup()
                                  myRange<float>{65.0, 80.0},
                                  myRange<float>{65.0, 80.0},
                                  ctrl_humrange);
-    circuit_dhum = 
-        new myCircuit<humSensor>(ui, "Feuchtigkeit", *hsensor_erde, *io_humswitch,
+#endif
+    circuit_dhum =
+        new myCircuit<genSensor>(ui, "Feuchtigkeit", *hrem1, *io_humswitch,
                                  5,
                                  myRange<float>{65.0, 80.0},
                                  myRange<float>{65.0, 80.0},
                                  ctrl_humrange);
-
 
     ui->set_mode(UI_OPERATIONAL);
 #if 0
