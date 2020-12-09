@@ -33,6 +33,9 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
     mutex = xSemaphoreCreateMutex();
     V(mutex);
 
+    ui_master_lock = xSemaphoreCreateMutex();
+    V(ui_master_lock);
+
     modes[UI_SPLASH] = lv_obj_create(NULL, NULL);
     /* splash */
     set_mode(UI_SPLASH);
@@ -155,9 +158,6 @@ void uiElements::ui_task(void)
     delay(500);
     while (1)
     {
-        //loop_wifi();
-        //loop_OTA();
-        loop_mqtt();
         int res = biohazard_alarm();
         delay(res);
     }
@@ -278,12 +278,18 @@ void uiElements::update_sensor(genSensor *s)
 
 void uiElements::update_config(String s)
 {
-    if (s == "/FCCE-alive")
+    if (s.startsWith("/sensor-alive"))
     {
         time(&last_fcce_tick);
         return;
     }
-    log_msg("Update arrived: " + s);
+    if (s.startsWith("/uptime"))
+    {
+        time(&last_fcce_tick);
+        log_msg(String("fcce: ") + s);
+        return;
+    }
+    log_msg(String("Update arrived: ") + s);
 }
 
 void uiElements::set_switch(String s)

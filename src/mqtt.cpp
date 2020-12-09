@@ -53,13 +53,17 @@ void onMqttUnsubscribe(uint16_t packetId)
 
 void onMqttMessage(char *t, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
 {
+    if (len == 0) {
+        log_msg("MQTT invalid message received... ignoring");
+        return;
+    }
     char *buf = (char *)malloc(len * sizeof(char) + 1);
     snprintf(buf, len + 1, "%s", payload);
     //log_msg(String("Sensor ") + t + " delivered: " + buf + "(" + String(len) + ")");
     const String topic{strchr(t + 1, '/')};
 
     // check if config things arriving
-    if (topic == "/config")
+    if (topic.startsWith("/config"))
     {
         ui->update_config(String(buf));
     }
@@ -71,6 +75,7 @@ void onMqttMessage(char *t, char *payload, AsyncMqttClientMessageProperties prop
                   [&](genCircuit *c) {
                       if ((String("/") + c->get_name()) == topic)
                       {
+                          ui->ui_P();
                           if (!strchr(buf, '1'))
                               if (!strchr(buf, '0'))
                                   log_msg("Circuit " + c->get_name() + " unknown request: " + buf);
@@ -78,6 +83,7 @@ void onMqttMessage(char *t, char *payload, AsyncMqttClientMessageProperties prop
                                   c->io_set(LOW, true, true);
                           else
                               c->io_set(HIGH, true, true);
+                          ui->ui_V();
                       }
                   });
 
@@ -87,13 +93,15 @@ void onMqttMessage(char *t, char *payload, AsyncMqttClientMessageProperties prop
                       //log_msg(String("checking '") + sens_name + "' against '" + sensor->get_name() + '\'');
                       if (*sensor == topic)
                       {
+                          ui->ui_P();
                           sensor->update_data(strtof(buf, NULL));
+                          ui->ui_V();
                           fcce_alive = true;
                       }
                   });
     free(buf);
     if (fcce_alive)
-        ui->update_config(String("/FCCE-alive"));
+        ui->update_config(String("/sensor-alive"));
 }
 
 void onMqttPublish(uint16_t packetId)

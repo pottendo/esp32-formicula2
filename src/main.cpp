@@ -32,17 +32,17 @@ int glob_delay = 10;
 // module locals
 static myDHT *th1, *th2;
 static tempSensor *tsensor_berg, *tsensor_erde;
-static remoteSensor *trem1;
-static remoteSensor *hrem1;
+static remoteSensor *trem1, *trem2;
+static remoteSensor *hrem1, *hrem2;
 static humSensor *hsensor_berg, *hsensor_erde;
 static timeSwitch *tswitch;
 static ioDigitalIO *io_tswitch, *io_infrared, *io_heater, *io_fan, *io_fog /*, *io_spare2*/;
 static ioServo *io_humswitch;
 static myCircuit<genSensor> *circuit_timeswitch;
 static myCircuit<genSensor> *circuit_infrared;
+static myCircuit<genSensor> *circuit_heater;
+static myCircuit<genSensor> *circuit_fan;
 /*
-static myCircuit<tempSensor> *circuit_heater;
-static myCircuit<humSensor> *circuit_fan;
 static myCircuit<humSensor> *circuit_fog;
 static myCircuit<humSensor> *circuit_fog2;
 */
@@ -76,38 +76,40 @@ void setup()
     io_fan = new ioDigitalIO(16, true); // inverse logic for fan
     io_fog = new ioDigitalIO(32);
     //io_spare2 = new ioDigitalIO(25);
-    io_humswitch = new ioServo(14, false, 0, 120); 
+    io_humswitch = new ioServo(14, false, 0, 120);
 
     circuit_timeswitch =
         new myCircuit<genSensor>(ui, "Zeitschalter", *tswitch, *io_tswitch,
-                                  5,
-                                  myRange<float>{0.0, 0.0},
-                                  myRange<float>{0.0, 0.0},
-                                  ctrl_temprange,
-                                  *(new myRange<struct tm>{{0, 0, 7}, {0, 0, 22}}));
+                                 5,
+                                 myRange<float>{0.0, 0.0},
+                                 myRange<float>{0.0, 0.0},
+                                 ctrl_temprange,
+                                 *(new myRange<struct tm>{{0, 0, 7}, {0, 0, 22}}));
 
     trem1 = new remoteSensor{ui, "/TempBerg1"};
     hrem1 = new remoteSensor{ui, "/HumBerg1"};
+    trem2 = new remoteSensor{ui, "/TempErde1"};
+    hrem2 = new remoteSensor{ui, "/HumErde1"};
 
     circuit_infrared =
         new myCircuit<genSensor>(ui, "Infrarot", *trem1, *io_infrared,
-                                  5,
-                                  myRange<float>{28.0, 29.0},
-                                  myRange<float>{24.0, 27.0},
-                                  ctrl_temprange);
-#if 0                                  
+                                 5,
+                                 myRange<float>{28.0, 29.0},
+                                 myRange<float>{24.0, 27.0},
+                                 ctrl_temprange);
     circuit_heater =
-        new myCircuit<tempSensor>(ui, "Heizmatte", *tsensor_erde, *io_heater,
+        new myCircuit<genSensor>(ui, "Heizmatte", *trem2, *io_heater,
                                   5,
                                   myRange<float>{27.0, 28.0},
                                   myRange<float>{27.0, 28.0},
                                   ctrl_temprange);
     circuit_fan =
-        new myCircuit<humSensor>(ui, "Luefter", *hrem1, *io_fan,
+        new myCircuit<genSensor>(ui, "Luefter", *hrem1, *io_fan,
                                  5,
                                  myRange<float>{65.0, 75.0},
                                  myRange<float>{65.0, 75.0},
                                  ctrl_humrange); // inverse logic for fan as hum drops
+#if 0                                  
     circuit_fog =
         new myCircuit<humSensor>(ui, "Nebel Berg", *hsensor_berg, *io_fog,
                                  5,
@@ -122,7 +124,7 @@ void setup()
                                  ctrl_humrange);
 #endif
     circuit_dhum =
-        new myCircuit<genSensor>(ui, "Feuchtigkeit", *hrem1, *io_humswitch,
+        new myCircuit<genSensor>(ui, "Feuchtigkeit", *hrem2, *io_humswitch,
                                  5,
                                  myRange<float>{65.0, 80.0},
                                  myRange<float>{65.0, 80.0},
@@ -137,6 +139,10 @@ void setup()
 void loop()
 {
     loop_wifi();
-    lv_task_handler(); // all tasks (incl. sensors) are managed by lvgl!
+    loop_mqtt();
+
+    ui->ui_P();         // mqtt & alarm handling is separate and if interaction with UI is needed, masterlock is needed.
+    lv_task_handler();  // most tasks (incl. local sensors) are managed by lvgl!
+    ui->ui_V();
     delay(glob_delay);
 }

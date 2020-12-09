@@ -125,6 +125,7 @@ class uiElements
     const int buzzer_channel = 8;
     const int bgled_channel = buzzer_channel + 1;
     SemaphoreHandle_t mutex;
+    SemaphoreHandle_t ui_master_lock;
     bool do_sound = false;
     bool do_manual = false;
     time_t last_fcce_tick;
@@ -135,6 +136,9 @@ public:
 
     static void ui_task_wrapper(void *args);
     void ui_task(void);
+
+    inline void ui_P(void) { P(ui_master_lock); }
+    inline void ui_V(void) { V(ui_master_lock); }
 
     inline bool manual(void)
     {
