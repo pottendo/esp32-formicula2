@@ -156,7 +156,7 @@ void uiElements::update()
 
     /* take care of a life-signal to fcce */
     static unsigned long fcc_wd = millis();
-    if ((millis() - fcc_wd) > (20 * 1000)) {
+    if ((millis() - fcc_wd) > (14 * 1000)) {
         mqtt_publish("fcc/cc-alive", "uptime TBD");
         fcc_wd = millis();
     }

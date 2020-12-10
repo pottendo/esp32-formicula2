@@ -32,8 +32,8 @@ int glob_delay = 10;
 // module locals
 static myDHT *th1, *th2;
 static tempSensor *tsensor_berg, *tsensor_erde;
-static remoteSensor *trem1, *trem2;
-static remoteSensor *hrem1, *hrem2;
+static remoteSensor *trem1, *trem2, *trem3;
+static remoteSensor *hrem1, *hrem2, *hrem3;
 static humSensor *hsensor_berg, *hsensor_erde;
 static timeSwitch *tswitch;
 static ioDigitalIO *io_tswitch, *io_infrared, *io_heater, *io_fan, *io_fog /*, *io_spare2*/;
@@ -42,10 +42,8 @@ static myCircuit<genSensor> *circuit_timeswitch;
 static myCircuit<genSensor> *circuit_infrared;
 static myCircuit<genSensor> *circuit_heater;
 static myCircuit<genSensor> *circuit_fan;
-/*
-static myCircuit<humSensor> *circuit_fog;
-static myCircuit<humSensor> *circuit_fog2;
-*/
+static myCircuit<genSensor> *circuit_fog;
+static myCircuit<genSensor> *circuit_fog2;
 static myCircuit<genSensor> *circuit_dhum;
 //static myCircuit<tempSensor> *circuit_spare2;
 
@@ -90,6 +88,8 @@ void setup()
     hrem1 = new remoteSensor{ui, "/HumBerg1"};
     trem2 = new remoteSensor{ui, "/TempErde1"};
     hrem2 = new remoteSensor{ui, "/HumErde1"};
+    trem3 = new remoteSensor{ui, "/TempBerg2"};
+    hrem3 = new remoteSensor{ui, "/HumBerg2"};
 
     circuit_infrared =
         new myCircuit<genSensor>(ui, "Infrarot", *trem1, *io_infrared,
@@ -109,27 +109,25 @@ void setup()
                                  myRange<float>{65.0, 75.0},
                                  myRange<float>{65.0, 75.0},
                                  ctrl_humrange); // inverse logic for fan as hum drops
-#if 0                                  
     circuit_fog =
-        new myCircuit<humSensor>(ui, "Nebel Berg", *hsensor_berg, *io_fog,
+        new myCircuit<genSensor>(ui, "Nebel Berg", *trem3, *io_fog,
                                  5,
                                  myRange<float>{60.0, 65.0},
                                  myRange<float>{60.0, 65.0},
                                  ctrl_humrange);
     circuit_fog2 =
-        new myCircuit<humSensor>(ui, "Nebel Erde", *hsensor_erde, *io_fog,
+        new myCircuit<genSensor>(ui, "Nebel Erde", *hrem3, *io_fog,
                                  5,
                                  myRange<float>{65.0, 80.0},
                                  myRange<float>{65.0, 80.0},
                                  ctrl_humrange);
-#endif
     circuit_dhum =
         new myCircuit<genSensor>(ui, "Feuchtigkeit", *hrem2, *io_humswitch,
                                  5,
                                  myRange<float>{65.0, 80.0},
                                  myRange<float>{65.0, 80.0},
                                  ctrl_humrange);
-
+    delay(25);
     ui->set_mode(UI_OPERATIONAL);
 #if 0
     circuit_spare2 = new myCircuit<tempSensor>(String("Spare2"), *tsensor, *io_spare2, 4);
