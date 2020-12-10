@@ -64,6 +64,7 @@ void setup_mqtt(uiElements *ui);
 void loop_mqtt(void);
 void mqtt_register_sensor(genSensor *s);
 void mqtt_register_circuit(genCircuit *s);
+void mqtt_publish(String topic, String msg);
 
 //#include <WebServer.h>
 //void setup_OTA(WebServer *s);
@@ -119,6 +120,7 @@ class uiElements
     uiScreensaver saver;
     lv_obj_t *mwidget;
     lv_obj_t *fcce_widget;
+    lv_obj_t *fcce_widget_uptime;
     lv_obj_t *time_widget;
     lv_obj_t *load_widget;
     lv_obj_t *update_url;

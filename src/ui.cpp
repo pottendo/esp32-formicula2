@@ -74,6 +74,9 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
     lv_label_set_recolor(fcce_widget, true);
     lv_label_set_text(fcce_widget, "FCCE: ");
     add2ui(UI_CFG2, fcce_widget);
+    fcce_widget_uptime = lv_label_create(tabs[UI_CFG2], NULL);
+    lv_label_set_text(fcce_widget_uptime, "FCCE: ");
+    add2ui(UI_CFG2, fcce_widget_uptime);
     load_widget = lv_label_create(tabs[UI_CFG2], NULL);
     lv_label_set_text(load_widget, "Load: ");
     add2ui(UI_CFG2, load_widget);
@@ -150,6 +153,13 @@ void uiElements::update()
     // update load_widget
     snprintf(buf, 64, "Load: %d%%", 100 - lv_task_get_idle());
     lv_label_set_text(load_widget, buf);
+
+    /* take care of a life-signal to fcce */
+    static unsigned long fcc_wd = millis();
+    if ((millis() - fcc_wd) > (20 * 1000)) {
+        mqtt_publish("fcc/cc-alive", "uptime TBD");
+        fcc_wd = millis();
+    }
 };
 
 void uiElements::ui_task(void)
@@ -287,6 +297,7 @@ void uiElements::update_config(String s)
     {
         time(&last_fcce_tick);
         log_msg(String("fcce: ") + s);
+        lv_label_set_text(fcce_widget_uptime, s.c_str());
         return;
     }
     log_msg(String("Update arrived: ") + s);

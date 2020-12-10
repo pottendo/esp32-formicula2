@@ -53,7 +53,8 @@ void onMqttUnsubscribe(uint16_t packetId)
 
 void onMqttMessage(char *t, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
 {
-    if (len == 0) {
+    if (len == 0)
+    {
         log_msg("MQTT invalid message received... ignoring");
         return;
     }
@@ -127,6 +128,33 @@ void setup_mqtt(uiElements *u)
     delay(20);
 }
 
+bool mqtt_reset(void)
+{
+    printf("MQTT not connected, connecting... ");
+    delete mqttClient;
+    setup_mqtt(ui);
+    mqttClient->connect();
+    delay(20);
+    if (!mqttClient->connected())
+    {
+        printf("failed.\n");
+        return false;
+    }
+    else
+    {
+        printf("success.\n");
+        return true;
+    }
+}
+
+void mqtt_publish(String topic, String msg)
+{
+    if (!mqttClient->connected() &&
+        (mqtt_reset() == false))
+        return;
+    mqttClient->publish(topic.c_str(), 0, 0, msg.c_str());
+}
+
 void loop_mqtt()
 {
     static long value = 0;
@@ -141,14 +169,7 @@ void loop_mqtt()
     {
         if (!mqttClient->connected())
         {
-            printf("MQTT not connected, connecting... ");
-            delete mqttClient;
-            setup_mqtt(ui);
-            mqttClient->connect();
-            if (!mqttClient->connected())
-                printf("failed.\n");
-            else
-                printf("success.\n");
+            mqtt_reset();
         }
         else
         {
