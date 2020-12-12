@@ -15,7 +15,7 @@
  * along with vice-mapper.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
-
+#if 0
 #include <ESPAsyncWebServer.h>
 #include <Update.h>
 #include "ui.h"
@@ -151,7 +151,7 @@ void setup_OTA(void)
 void loop_OTA(void)
 {
 }
-
+#endif
 #ifdef ASYNCELOTA
 #include <AsyncElegantOTA.h>
 static AsyncWebServer server(8080);
