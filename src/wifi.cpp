@@ -61,7 +61,6 @@ static void rootPage(void)
 void setup_wifi(void)
 {
     log_msg("Setting up Wifi...");
-    #if 0
     ip_server.on("/", rootPage);
     config.ota = AC_OTA_BUILTIN;
     portal.config(config);
@@ -69,12 +68,14 @@ void setup_wifi(void)
     {
         Serial.println("WiFi connected: " + WiFi.localIP().toString());
     }
-    #endif
+#if 0
     WiFi.begin("pottendo_EXT", "poTtendosWLAN");
-    while (!WiFi.isConnected()) {
+    while (!WiFi.isConnected())
+    {
         log_msg("...failed, retrying");
         delay(500);
     }
+#endif
     log_msg("done.\nSetting up local time...");
     //init and get the time
     time_obj = new myTime();
