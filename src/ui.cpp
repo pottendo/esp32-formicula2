@@ -156,9 +156,18 @@ void uiElements::update()
 
     /* take care of a life-signal to fcce */
     static unsigned long fcc_wd = millis();
-    if ((millis() - fcc_wd) > (14 * 1000)) {
-        mqtt_publish("fcc/cc-alive", "uptime TBD");
+    if ((millis() - fcc_wd) > (5 * 1000))
+    {
+        static char buf[64];
         fcc_wd = millis();
+        unsigned long upt = fcc_wd / 1000;
+        snprintf(buf, 64, "/uptime %02ldh:%02ldm:%02lds, free mem = %d",
+                 upt / 3600,
+                 (upt % 3600) / 60,
+                 (upt % 60),
+                 ESP.getFreeHeap());
+
+        mqtt_publish("fcc/cc-alive", buf);
     }
 };
 

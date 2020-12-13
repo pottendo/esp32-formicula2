@@ -115,7 +115,11 @@ void mqtt_publish(String topic, String msg)
 {
     if (!client->connected() &&
         (mqtt_reset() == false))
+    {
+        log_msg("mqtt client not connected...");
         return;
+    }
+    log_msg("fcc publish: " + topic + " - " + msg);
     client->publish(topic.c_str(), msg.c_str());
 }
 
@@ -123,7 +127,7 @@ void setup_mqtt(uiElements *u)
 {
     ui = u;
     client = new PubSubClient{wClient};
-    server = MDNS.queryHost(mqtt_server.c_str());  
+    server = MDNS.queryHost(mqtt_server.c_str());
     client->setServer(server, 1883);
     client->setCallback(callback);
 
@@ -137,7 +141,8 @@ void loop_mqtt_dummy()
     static char msg[50];
     static unsigned long lastMsg = millis();
 
-    if (!WiFi.isConnected()){
+    if (!WiFi.isConnected())
+    {
         log_msg("Wifi not connected ... strange");
         return;
     }
@@ -153,16 +158,14 @@ void loop_mqtt_dummy()
         {
             ++value;
             snprintf(msg, 50, "Hello world from formicula control centre #%ld", value);
-            Serial.print("Publish message: ");
-            Serial.println(msg);
-            client->publish("fcce/config", msg);
+            mqtt_publish("fcce/config", msg);
             const char *c;
             if (value % 2)
                 c = "1";
             else
                 c = "0";
 
-            client->publish("fcce/Infrarot", c);
+            mqtt_publish("fcce/Infrarot", c);
         }
         lastMsg = now;
     }
