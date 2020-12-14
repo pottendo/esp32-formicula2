@@ -31,6 +31,7 @@ int glob_delay = 10;
 
 // module locals
 static myDHT *th1, *th2;
+static myDS18B20 *temp_berg;
 static tempSensor *tsensor_berg, *tsensor_erde;
 static remoteSensor *trem1, *trem2, *trem3;
 static remoteSensor *hrem1, *hrem2, *hrem3;
@@ -56,8 +57,9 @@ void setup()
 
     init_lvgl();
     ui = setup_ui(ui_ss_timeout);
+    setup_io();
     setup_wifi();
-    setup_mqtt(ui);
+    //setup_mqtt(ui);
 #if 0    
     th1 = new myDHT("Berg", 17, ui, DHTesp::DHT22);
     th2 = new myDHT("Erde", 13, ui, DHTesp::DHT22);
@@ -84,6 +86,7 @@ void setup()
                                  ctrl_temprange,
                                  *(new myRange<struct tm>{{0, 0, 7}, {0, 0, 22}}));
 
+    temp_berg = new myDS18B20(ui, "/Berg", 17, 1800);
     trem1 = new remoteSensor{ui, "/TempBerg1"};
     hrem1 = new remoteSensor{ui, "/HumBerg1"};
     trem2 = new remoteSensor{ui, "/TempErde1"};
@@ -92,7 +95,7 @@ void setup()
     hrem3 = new remoteSensor{ui, "/HumBerg2"};
 
     circuit_infrared =
-        new myCircuit<genSensor>(ui, "Infrarot", *trem1, *io_infrared,
+        new myCircuit<genSensor>(ui, "Infrarot", *temp_berg, *io_infrared,
                                  5,
                                  myRange<float>{28.0, 29.0},
                                  myRange<float>{24.0, 27.0},
@@ -137,7 +140,7 @@ void setup()
 void loop()
 {
     loop_wifi();
-    loop_mqtt();
+    //loop_mqtt();
 
     ui->ui_P();         // mqtt & alarm handling is separate and if interaction with UI is needed, masterlock is needed.
     lv_task_handler();  // most tasks (incl. local sensors) are managed by lvgl!

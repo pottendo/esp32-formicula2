@@ -113,8 +113,9 @@ bool mqtt_reset(void)
 
 void mqtt_publish(String topic, String msg)
 {
-    if (!client->connected() &&
-        (mqtt_reset() == false))
+    if ((client == nullptr) ||
+        !client->connected() &&
+            (mqtt_reset() == false))
     {
         log_msg("mqtt client not connected...");
         return;
@@ -128,6 +129,7 @@ void setup_mqtt(uiElements *u)
     ui = u;
     client = new PubSubClient{wClient};
     server = MDNS.queryHost(mqtt_server.c_str());
+    delay(25);
     client->setServer(server, 1883);
     client->setCallback(callback);
 
