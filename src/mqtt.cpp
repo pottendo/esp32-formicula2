@@ -7,8 +7,8 @@
 #include "ui.h"
 #include "circuits.h"
 
-//static const String mqtt_server{"pottendo-pi30-phono"};
-static const String mqtt_server{"fcce"};
+static const String mqtt_server{"pottendo-pi30-phono"};
+//static const String mqtt_server{"fcce"};
 static IPAddress server;
 static uiElements *ui;
 
@@ -114,18 +114,19 @@ bool mqtt_reset(void)
 void mqtt_publish(String topic, String msg)
 {
     if ((client == nullptr) ||
-        !client->connected() &&
-            (mqtt_reset() == false))
+        (!client->connected() &&
+            (mqtt_reset() == false)))
     {
         log_msg("mqtt client not connected...");
         return;
     }
-    log_msg("fcc publish: " + topic + " - " + msg);
+    //log_msg("fcc publish: " + topic + " - " + msg);
     client->publish(topic.c_str(), msg.c_str());
 }
 
 void setup_mqtt(uiElements *u)
 {
+    return;
     ui = u;
     client = new PubSubClient{wClient};
     server = MDNS.queryHost(mqtt_server.c_str());
@@ -175,6 +176,7 @@ void loop_mqtt_dummy()
 
 void loop_mqtt()
 {
+    return;
     if (!client->connected())
     {
         reconnect();

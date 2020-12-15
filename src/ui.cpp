@@ -63,9 +63,11 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
     /* tab 1 - Status */
     temp_meter = new analogMeter(this, UI_STATUS, "Temperatur", ctrl_temprange, "C");
     add2ui(UI_STATUS, temp_meter->get_area());
+    temp_meter->set_val(27.0);
 
     hum_meter = new analogMeter(this, UI_STATUS, "Feuchtigkeit", ctrl_humrange, "\%");
     add2ui(UI_STATUS, hum_meter->get_area());
+    hum_meter->set_val(65.0);
 
     time_widget = lv_label_create(tabs[UI_CFG2], NULL);
     lv_label_set_text(time_widget, "Time: ");
@@ -292,7 +294,7 @@ void uiElements::register_sensor(genSensor *s)
 void uiElements::update_sensor(genSensor *s)
 {
     lv_obj_t *w = sensor_widgets.retrieve(s);
-    lv_label_set_text(w, (s->get_name() + ": " + String(s->get_data())).c_str());
+    lv_label_set_text(w, s->to_string().c_str());
 }
 
 void uiElements::update_config(String s)

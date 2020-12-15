@@ -32,10 +32,16 @@
 
 void setup_io(void);
 
-class avgDHT; /* forware declaration */
+/* forware declaration */
+class avgDHT;
+class periodicSensor;
+class multiPropertySensor;
+class avgSensor;
+
 typedef enum
 {
     REAL_SENSOR,
+    AVG_SENSOR,
     JUST_SWITCH
 } sens_type_t;
 
@@ -46,6 +52,8 @@ protected:
     const String name;
     const sens_type_t type;
     SemaphoreHandle_t mutex;
+    std::list<avgSensor *> parents{};
+    bool error = false;
 
 public:
     genSensor(uiElements *ui, String n, const sens_type_t t = REAL_SENSOR) : ui(ui), name(n), type(t)
@@ -59,26 +67,34 @@ public:
 
     sens_type_t get_type() { return type; }
     String get_name() { return name; };
-    virtual String to_string(void) { return name; };
+    virtual String _to_string() = 0;
+    virtual String to_string(void)
+    {
+        if (error)
+            return name + ": #ff0000 <ERROR>";
+        else
+            return name + ": " + _to_string();
+    }
     bool operator==(const String s)
     {
         return name == s;
     }
 
     virtual float get_data(void) = 0;
-    virtual void _add_data(float v) = 0;
-    virtual void update_data(void) = 0;
     virtual void add_data(float v)
     {
         P(mutex);
         _add_data(v);
         V(mutex);
     }
-    virtual void update_data(float v)
+    virtual void _add_data(float v) = 0;
+    virtual void update_data(void) = 0;
+    virtual void update_data(float v) { add_data(v); }
+    virtual void update_data(multiPropertySensor *s)
     {
-        log_msg("genSensor " + name + " updated to: " + String(get_data()));
-        add_data(v);
+        log_msg(name + String(": genSensor update_data callled for multiPropertySensor - shouldn't happen!!!"));
     }
+
     virtual void update_display(void)
     {
         if (type == REAL_SENSOR)
@@ -89,6 +105,8 @@ public:
         mqtt_publish(to_string(), String(get_data()));
         log_msg("Sensor " + name + " updated to: " + String(get_data()));
     }
+
+    virtual void add_parent(avgSensor *p) { parents.push_back(p); }
 };
 
 class periodicSensor : public genSensor
@@ -100,9 +118,84 @@ public:
     periodicSensor(uiElements *ui, const String n, int period = 2000);
     virtual ~periodicSensor() = default;
     static void periodic_wrapper(lv_task_t *t);
+    virtual String _to_string(void) override { return String(get_data()); };
     virtual float get_data(void) override = 0;
-    virtual void update_data(void) override = 0;
-    virtual void cb(void) = 0;
+    virtual void update_data(void) = 0;
+    virtual void cb(void) { update_data(); update_display(); }
+};
+
+class multiPropertySensor : public periodicSensor
+{
+
+public:
+    multiPropertySensor(uiElements *ui, String n, int period) : periodicSensor(ui, n, period) {}
+    virtual ~multiPropertySensor() = default;
+    virtual String _to_string(void) = 0;
+    virtual float get_data(void) override = 0;
+    virtual float get_temp(void) = 0;
+    virtual float get_hum(void) = 0;
+};
+
+class avgSensor : public genSensor
+{
+protected:
+    static const int sample_no = 12;
+    std::array<float, sample_no> data;
+    std::list<genSensor *> sensors;
+    int act_ind;
+    float cached_data = 0.0;
+
+public:
+    avgSensor(uiElements *ui, String n, std::list<genSensor *> s, float def_val = 0.0)
+        : genSensor(ui, n, AVG_SENSOR), sensors(s), act_ind(0)
+    {
+        mutex = xSemaphoreCreateMutex();
+        for_each(sensors.begin(), sensors.end(),
+                 [&](genSensor *sens) { sens->add_parent(this); });
+        for (int i = 0; i < sample_no; i++)
+            data[i] = def_val;
+        V(mutex);
+    }
+    ~avgSensor() = default;
+
+    virtual void update_data(void) override { log_msg(name + ": update_data called - shouldn't happen!!!"); }
+    virtual String _to_string(void) { return String(cached_data); };
+
+    // virtual void update_display(float) = 0;
+    // virtual void update_display(void) = 0;
+    virtual void _add_data(float d) override
+    {
+        data[act_ind] = d;
+        act_ind = ((act_ind + 1) % sample_no);
+    }
+    float get_data() override
+    {
+        float res = 0.0;
+        P(mutex);
+        std::array<float, sample_no> s = data;
+        V(mutex);
+        std::sort(s.begin(), s.end());
+#if 0
+        printf("%s data:           [", name.c_str());
+        for (int i = 0; i < sample_no; i++)
+        {
+            printf("%.2f,", data[i]);
+        }
+        printf("]\n");
+        printf("%s sorted data:    [", name.c_str());
+        for (int i = 0; i < sample_no; i++)
+        {
+            printf("%.2f,", s[i]);
+        }
+        printf("]\n");
+#endif
+        for (int i = 2; i < sample_no - 2; i++)
+            res = res + s[i];
+        res = res / (sample_no - 4);
+        //        update_display(res);
+        cached_data = res;
+        return res;
+    }
 };
 
 class myDS18B20 : public periodicSensor
@@ -111,19 +204,31 @@ class myDS18B20 : public periodicSensor
     OneWire *wire;
     DallasTemperature *temps;
     int pin;
+    int no_DS18B20 = 0;
+    float all_temps[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
 public:
     myDS18B20(uiElements *ui, const String n, int pin, int perdiod = 2000);
     virtual ~myDS18B20() = default;
 
-    virtual void _add_data(float v) override {}
-    virtual void update_data();
-    virtual void cb(void) override
-    {
-        update_data();
-        publish_data();
+    virtual String _to_string(void) {
+        String s;
+        for (int i = 0; i < no_DS18B20; i++) {
+            s += String(all_temps[i]);
+            s += "C ";
+        }
+        return s;
     }
-    virtual float get_data(void) override { return temp; }
+    virtual void _add_data(float v) override { temp = v; }
+    virtual void update_data() override;
+    virtual float get_data(void) override
+    {
+        float r;
+        P(mutex);
+        r = temp;
+        V(mutex);
+        return r;
+    }
 };
 
 class myCapMoisture : public periodicSensor
@@ -136,29 +241,21 @@ public:
         : periodicSensor(ui, n, period), pin(p) {}
     virtual ~myCapMoisture() = default;
 
-    virtual void update_data()
+    virtual void _add_data(float v) override { val = v; }
+    virtual void update_data() override
     {
+        P(mutex);
         val = analogRead(pin);
+        V(mutex);
     }
-    virtual void cb(void) override
+    virtual float get_data(void) override
     {
-        update_data();
-        publish_data();
+        float r;
+        P(mutex);
+        r = val;
+        V(mutex);
+        return r;
     }
-    virtual float get_data(void) override { return val; }
-};
-
-class multiPropertySensor : public periodicSensor
-{
-
-public:
-    multiPropertySensor(uiElements *ui, String n, int period) : periodicSensor(ui, n, period) {}
-    virtual ~multiPropertySensor() = default;
-    virtual float get_data(void) override = 0;
-    virtual void cb(void) = 0;
-    virtual float get_temp(void) = 0;
-    virtual float get_hum(void) = 0;
-    virtual void add_parent(avgDHT *p) = 0;
 };
 
 class myDHT : public multiPropertySensor
@@ -167,20 +264,18 @@ class myDHT : public multiPropertySensor
     int pin;
     DHTesp::DHT_MODEL_t model;
     float temp, hum;
-    std::list<avgDHT *> parents;
 
 public:
-    myDHT(uiElements *ui, String n, int pin, int period = 2000, DHTesp::DHT_MODEL_t m = DHTesp::DHT22);
+    myDHT(uiElements *ui, String n, int pin, DHTesp::DHT_MODEL_t m = DHTesp::DHT22, int period = 2000);
     virtual ~myDHT() = default;
 
-    virtual void cb(void) override { update_data(); }
+    virtual String _to_string(void) { return String(get_temp()) + "C," + String(get_hum()) + "%"; }
+    virtual void update_data() override;
     inline int get_pin(void) { return pin; }
-    virtual float get_data(void) { return temp * hum; } /* dummy, never used directly here */
+    virtual float get_data(void) { return -temp * hum; } /* dummy, never used directly here */
+    virtual void _add_data(float v) { return; }          /* dummy, never used directly */
     inline float get_temp(void) { return temp; }
     inline float get_hum(void) { return hum; }
-
-    void update_data();
-    virtual void add_parent(avgDHT *p) { parents.push_back(p); }
 };
 
 class myBM280 : public multiPropertySensor
@@ -191,20 +286,122 @@ class myBM280 : public multiPropertySensor
     Adafruit_Sensor *bme_temp;
     Adafruit_Sensor *bme_humidity;
     //Adafruit_Sensor *bme_pressure = bme.getPressureSensor();
-    std::list<avgDHT *> parents;
 
 public:
-    myBM280(uiElements *ui, String n, int address, int period = 2000);
+    myBM280(uiElements *ui, String n, int address = 0x76, int period = 2000);
     virtual ~myBM280() = default;
 
-    virtual void cb(void) override { update_data(); }
+    virtual String _to_string(void) { return String(get_temp()) + "C," + String(get_hum()) + "%"; }
+    virtual void update_data() override;
     virtual float get_data(void) { return temp * hum; } /* dummy, never used directly here */
-    inline float get_temp() { return temp; }
-    inline float get_hum() { return hum; }
-
-    void update_data();
-    virtual void add_parent(avgDHT *p) { parents.push_back(p); }
+    virtual void _add_data(float v) { return; }         /* dummy, never used directly */
+    inline float get_temp()
+    {
+        float r;
+        P(mutex);
+        r = temp;
+        V(mutex);
+        return r;
+    }
+    inline float get_hum()
+    {
+        float r;
+        P(mutex);
+        r = hum;
+        V(mutex);
+        return r;
+    }
 };
+
+class tempSensorMulti : public avgSensor
+{
+public:
+    tempSensorMulti(uiElements *ui, String n, std::list<genSensor *> sensors)
+        : avgSensor(ui, n, sensors, 25.0) {}
+    virtual ~tempSensorMulti() = default;
+    virtual void update_data(void) override { log_msg(name + ": update_data called - shouldn't happen!!!"); }
+    virtual void update_data(multiPropertySensor *s) override
+    {
+        float v = s->get_temp();
+        add_data(v);
+        mqtt_publish("fcc" + name, String(v));
+    }
+
+#if 0
+    void update_display(float v)
+    {
+        temp_meter->set_val(v);
+    }
+#endif
+};
+
+class humSensorMulti : public avgSensor
+{
+public:
+    humSensorMulti(uiElements *ui, String n, std::list<genSensor *> sensors)
+        : avgSensor(ui, n, sensors, 65.5) {}
+    virtual ~humSensorMulti() = default;
+    virtual void update_data(void) override { log_msg(name + ": update_data called - shouldn't happen!!!"); }
+    virtual void update_data(multiPropertySensor *s) override
+    {
+        float v = s->get_hum();
+        add_data(v);
+        mqtt_publish("fcc" + name, String(v));
+    }
+
+#if 0
+    void _update_data(genSensor *s) override
+    {
+        add_data(static_cast<multiPropertySensor *>(s)->get_hum());
+        update_display();
+    }
+
+    void update_display(float v)
+    {
+        hum_meter->set_val(v);
+    }
+#endif
+};
+
+class remoteSensor : public genSensor
+{
+    float d;
+
+public:
+    remoteSensor(uiElements *ui, const char *n = "<RemoteSensor>", float def_val = -99.0)
+        : genSensor(ui, String{n}, REAL_SENSOR), d(def_val)
+    {
+        mqtt_register_sensor(this);
+    };
+    virtual ~remoteSensor() = default;
+    virtual void update_data(void) override { log_msg(name + ": update_data called - shouldn't happen!!!"); }
+
+    virtual String _to_string(void) { return String(get_data()); }
+
+    virtual float get_data(void) override
+    {
+        float r;
+        P(mutex);
+        r = d;
+        V(mutex);
+        return r;
+    }
+
+    virtual void _add_data(float v)
+    {
+        d = v;
+    }
+    void update_data(float v)
+    {
+        add_data(v);
+        log_msg("Remote Sensor " + get_name() + " updated to " + String(get_data()));
+        update_display();
+        temp_meter->set_val(27.0);
+        hum_meter->set_val(77.0);
+    }
+};
+
+/* Digital IO switches */
 
 class ioSwitch
 {
@@ -303,6 +500,7 @@ public:
         return String(state());
     }
 };
+
 class timeSwitch : public genSensor
 {
 public:
@@ -310,336 +508,10 @@ public:
         : genSensor(ui, String{n}, JUST_SWITCH) {}
     ~timeSwitch() = default;
 
+    virtual String _to_string(void) { return name; }
     virtual float get_data(void) override { return 0; }
     virtual void _add_data(float v) override { return; }
-    virtual void update_data(void) override { return ;}
+    virtual void update_data(void) override { return; }
 };
-
-class avgDHT : public genSensor
-{
-protected:
-    static const int sample_no = 10;
-    std::array<float, sample_no> data;
-    int act_ind;
-    std::list<multiPropertySensor *> sensors;
-
-public:
-    avgDHT(uiElements *ui, const sens_type_t t, std::list<multiPropertySensor *> dhts, const char *n = "avgDHT", float def_val = 0.0)
-        : genSensor(ui, String{n}, t), act_ind(0), sensors(dhts)
-    {
-        mutex = xSemaphoreCreateMutex();
-        for_each(dhts.begin(), dhts.end(),
-                 [&](multiPropertySensor *dht) { dht->add_parent(this); });
-        for (int i = 0; i < sample_no; i++)
-            data[i] = def_val;
-        V(mutex);
-    }
-    ~avgDHT() = default;
-
-    virtual void update_data(multiPropertySensor *) = 0;
-    //    virtual void update_display(float) = 0;
-    virtual void _add_data(float d) override
-    {
-        P(mutex);
-        data[act_ind] = d;
-        act_ind = ((act_ind + 1) % sample_no);
-        V(mutex);
-    }
-    float get_data() override
-    {
-        float res = 0.0;
-        P(mutex);
-        std::array<float, sample_no> s = data;
-        V(mutex);
-        std::sort(s.begin(), s.end());
-#if 0
-        printf("data:           [");
-        for (int i = 0; i < sample_no; i++) {
-            printf("%.2f,", data[i]);
-        }
-        printf("]\n");
-        printf("sorted data:    [");
-        for (int i = 0; i < sample_no; i++) {
-            printf("%.2f,", s[i]);
-        }
-        printf("]\n");
-#endif
-        for (int i = 2; i < sample_no - 2; i++)
-            res = res + s[i];
-        res = res / (sample_no - 4);
-        //        update_display(res);
-        return res;
-    }
-};
-
-class tempSensor : public avgDHT
-{
-public:
-    tempSensor(uiElements *ui, std::list<multiPropertySensor *> dhts, const char *n = "<LocalTempSensor>")
-        : avgDHT(ui, REAL_SENSOR, dhts, n, 25.0) {}
-    virtual ~tempSensor() = default;
-
-    void update_data(multiPropertySensor *s) override
-    {
-        add_data(s->get_temp());
-        update_display();
-    }
-#if 0
-    void update_display(float v)
-    {
-        temp_meter->set_val(v);
-    }
-#endif
-};
-
-class humSensor : public avgDHT
-{
-public:
-    humSensor(uiElements *ui, std::list<multiPropertySensor *> dhts, const char *n = "<LocalHumSensor>")
-        : avgDHT(ui, REAL_SENSOR, dhts, n, 65.5) {}
-    virtual ~humSensor() = default;
-
-    void update_data(multiPropertySensor *s) override
-    {
-        add_data(s->get_hum());
-        update_display();
-    }
-#if 0
-    void update_display(float v)
-    {
-        hum_meter->set_val(v);
-    }
-#endif
-};
-
-class remoteSensor : public genSensor
-{
-    float d;
-
-public:
-    remoteSensor(uiElements *ui, const char *n = "<RemoteSensor>", float def_val = -99.0)
-        : genSensor(ui, String{n}, REAL_SENSOR), d(def_val)
-    {
-        mqtt_register_sensor(this);
-    };
-    virtual ~remoteSensor() = default;
-
-    virtual void update_data(void) override {}   /* FIXME use from mqtt input */
-    virtual float get_data(void) override
-    {
-        float r;
-        P(mutex);
-        r = d;
-        V(mutex);
-        return r;
-    }
-
-    virtual void _add_data(float v)
-    {
-        d = v;
-    }
-    void update_data(float v)
-    {
-        add_data(v);
-        log_msg("Remote Sensor " + get_name() + " updated to " + String(get_data()));
-        update_display();
-        temp_meter->set_val(27.0);
-        hum_meter->set_val(77.0);
-    }
-};
-
-/**********************************************88
-class myDHT
-{
-    DHTesp dht_obj;
-    const String name;
-    int pin;
-    uiElements *ui;
-    DHTesp::DHT_MODEL_t model;
-    float temp, hum;
-    SemaphoreHandle_t mutex;
-    lv_task_t *dht_io_task;
-    std::list<avgDHT *> parents;
-    lv_obj_t *ui_widget;
-
-public:
-    myDHT(String n, int p, uiElements *ui, DHTesp::DHT_MODEL_t m = DHTesp::DHT22);
-    ~myDHT() = default;
-
-    inline int get_pin(void) { return pin; }
-    inline float get_temp()
-    {
-        float r;
-        P(mutex);
-        r = temp;
-        V(mutex);
-        return r;
-    }
-    inline float get_hum()
-    {
-        float r;
-        P(mutex);
-        r = hum;
-        V(mutex);
-        return r;
-    }
-
-    void update_data();
-    inline void add_parent(avgDHT *p)
-    {
-        P(mutex);
-        parents.push_back(p);
-        V(mutex);
-    }
-};
-
-class ioSwitch
-{
-    uint8_t pin;
-    bool invers;
-
-public:
-    ioSwitch(uint8_t gpio, bool i = false) : pin(gpio), invers(i) {}
-    ~ioSwitch() = default;
-
-    virtual void _set(uint8_t pin, int val) = 0;
-    virtual int _state(uint8_t pin) = 0;
-    virtual const String to_string(void) = 0;
-    inline int state() { return _state(pin); }
-    inline int set(uint8_t n, bool ign_invers = false)
-    {
-        int res = state();
-        if (invers && !ign_invers)
-        {
-            n = (n == HIGH) ? LOW : HIGH;
-        }
-        _set(pin, n);
-        return res;
-    }
-    inline int toggle()
-    {
-        int res = state();
-        set((res == LOW) ? HIGH : LOW);
-        return res;
-    }
-
-    inline bool is_invers(void) { return invers; }
-};
-
-class ioDigitalIO : public ioSwitch
-{
-    const String on{"on"};
-    const String off{"off"};
-
-public:
-    ioDigitalIO(uint8_t pin, bool i = false, uint8_t m = OUTPUT) : ioSwitch(pin, i) { pinMode(pin, m); }
-    ~ioDigitalIO() = default;
-
-    void _set(uint8_t pin, int v) override
-    {
-        digitalWrite(pin, v);
-        //printf("digital write IO%d = %d\n", pin, v);
-    }
-    int _state(uint8_t pin) override
-    {
-        return digitalRead(pin);
-    }
-
-    const String to_string(void) override
-    {
-        int s = state();
-        //        if (invers)
-        //            return ((s == HIGH) ? off : on);
-        return ((s == HIGH) ? on : off);
-    }
-};
-
-class ioServo : public ioSwitch
-{
-    Servo *servo;
-    int low, high;
-
-public:
-    ioServo(uint8_t pin, bool i = false, int l = 0, int h = 180) : ioSwitch(pin, i), low(l), high(h)
-    {
-        servo = new Servo;
-#if 0
-        ESP32PWM::allocateTimer(0);
-        ESP32PWM::allocateTimer(1);
-        ESP32PWM::allocateTimer(2);
-        ESP32PWM::allocateTimer(3);
-#endif
-        servo->setPeriodHertz(50);
-        servo->attach(pin, 50, 2400);
-    }
-
-    void _set(uint8_t pin, int v) override
-    {
-        int val = map(v, LOW, HIGH, low, high);
-        //printf("servo write IO%d = %d\n", pin, val);
-        servo->write(val);
-    }
-
-    int _state(uint8_t pin) override
-    {
-        return servo->read();
-    }
-
-    const String to_string(void) override
-    {
-        return String(state());
-    }
-};
-
-typedef enum
-{
-    REAL_SENSOR,
-    JUST_SWITCH
-} sens_type_t;
-
-class genSensor
-{
-    uiElements *ui;
-    const sens_type_t type;
-    String name;
-
-protected:
-    SemaphoreHandle_t mutex;
-
-public:
-    genSensor(uiElements *ui, const sens_type_t t = REAL_SENSOR, String n = "<NONAME>") : ui(ui), type(t), name(String{n})
-    {
-        mutex = xSemaphoreCreateMutex();
-        V(mutex);
-        if (type == REAL_SENSOR) XXX / * don't register switch sensors (yet) * /
-            ui->register_sensor(this);
-    }
-    ~genSensor() = default;
-
-    sens_type_t get_type() { return type; }
-    String get_name() { return name; };
-    bool operator==(const String s)
-    {
-        return name == s;
-    }
-    virtual float get_data(void) = 0;
-    virtual void _add_data(float v) = 0;
-    virtual void add_data(float v)
-    {
-        P(mutex);
-        _add_data(v);
-        V(mutex);
-    }
-    virtual void update_data(float v)
-    {
-        add_data(v);
-    }
-    virtual void update_display(void)
-    {
-        if (type == REAL_SENSOR)
-            ui->update_sensor(this);
-    }
-};
-**********/
 
 #endif

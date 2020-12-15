@@ -31,11 +31,15 @@ int glob_delay = 10;
 
 // module locals
 static myDHT *th1, *th2;
-static myDS18B20 *temp_berg;
-static tempSensor *tsensor_berg, *tsensor_erde;
+static myDHT *dhtms_1;
+static myDS18B20 *dsls_1;
+static myBM280 *bmems_1;
+static avgSensor *tsavg_erde;
+static humSensorMulti *hsavg_erde_hin, *hsavg_berg;
+static tempSensorMulti *tsavg_erde_hin, *tsavg_berg;
 static remoteSensor *trem1, *trem2, *trem3;
 static remoteSensor *hrem1, *hrem2, *hrem3;
-static humSensor *hsensor_berg, *hsensor_erde;
+
 static timeSwitch *tswitch;
 static ioDigitalIO *io_tswitch, *io_infrared, *io_heater, *io_fan, *io_fog /*, *io_spare2*/;
 static ioServo *io_humswitch;
@@ -57,9 +61,9 @@ void setup()
 
     init_lvgl();
     ui = setup_ui(ui_ss_timeout);
-    setup_io();
+    //setup_io();
     setup_wifi();
-    //setup_mqtt(ui);
+    setup_mqtt(ui);
 #if 0    
     th1 = new myDHT("Berg", 17, ui, DHTesp::DHT22);
     th2 = new myDHT("Erde", 13, ui, DHTesp::DHT22);
@@ -86,22 +90,34 @@ void setup()
                                  ctrl_temprange,
                                  *(new myRange<struct tm>{{0, 0, 7}, {0, 0, 22}}));
 
-    temp_berg = new myDS18B20(ui, "/Berg", 17, 1800);
-    trem1 = new remoteSensor{ui, "/TempBerg1"};
-    hrem1 = new remoteSensor{ui, "/HumBerg1"};
-    trem2 = new remoteSensor{ui, "/TempErde1"};
-    hrem2 = new remoteSensor{ui, "/HumErde1"};
-    trem3 = new remoteSensor{ui, "/TempBerg2"};
-    hrem3 = new remoteSensor{ui, "/HumBerg2"};
+    dsls_1 = new myDS18B20(ui, "/Erde", 17, 5000);
+    tsavg_erde = new avgSensor(ui, "/avgTempErde", std::list<genSensor *>{dsls_1}); // Circuit heater input sensor
+    
+    dhtms_1 = new myDHT(ui, "/Erdehin", 13, DHTesp::DHT22, 10000);
+    hsavg_erde_hin = new humSensorMulti(ui, "/avgHumErdehin", std::list<genSensor *>{dhtms_1});
+    tsavg_erde_hin = new tempSensorMulti(ui, "/avgTempErdehin", std::list<genSensor *>{dhtms_1});
+    
+#if 0
+    bmems_1 = new myBM280(ui, "/tempBME280");
+    hsavg_berg = new humSensorMulti(ui, "/humBME280", std::list<genSensor *>{bmems_1});
+    tsavg_berg = new tempSensorMulti(ui, "/tempBME280", std::list<genSensor *>{bmems_1});
+#endif
+
+    trem1 = new remoteSensor{ui, "/TempBerg1", 27.0};
+    hrem1 = new remoteSensor{ui, "/HumBerg1", 65.0};
+    trem2 = new remoteSensor{ui, "/TempErde1",65.0};
+    hrem2 = new remoteSensor{ui, "/HumErde1", 65.0};
+    trem3 = new remoteSensor{ui, "/TempBerg2", 65.0};
+    hrem3 = new remoteSensor{ui, "/HumBerg2", 65.0};
 
     circuit_infrared =
-        new myCircuit<genSensor>(ui, "Infrarot", *temp_berg, *io_infrared,
+        new myCircuit<genSensor>(ui, "Infrarot", *trem1, *io_infrared,
                                  5,
                                  myRange<float>{28.0, 29.0},
                                  myRange<float>{24.0, 27.0},
                                  ctrl_temprange);
     circuit_heater =
-        new myCircuit<genSensor>(ui, "Heizmatte", *trem2, *io_heater,
+        new myCircuit<genSensor>(ui, "Heizmatte", *tsavg_erde, *io_heater,
                                   5,
                                   myRange<float>{27.0, 28.0},
                                   myRange<float>{27.0, 28.0},
@@ -140,7 +156,7 @@ void setup()
 void loop()
 {
     loop_wifi();
-    //loop_mqtt();
+    loop_mqtt();
 
     ui->ui_P();         // mqtt & alarm handling is separate and if interaction with UI is needed, masterlock is needed.
     lv_task_handler();  // most tasks (incl. local sensors) are managed by lvgl!
