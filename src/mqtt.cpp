@@ -7,8 +7,8 @@
 #include "ui.h"
 #include "circuits.h"
 
-static const String mqtt_server{"pottendo-pi30-phono"};
-//static const String mqtt_server{"fcce"};
+//static const String mqtt_server{"pottendo-pi30-phono"};
+static const String mqtt_server{"fcce"};
 static IPAddress server;
 static uiElements *ui;
 
@@ -86,19 +86,31 @@ PubSubClient *client;
 
 void reconnect()
 {
+    static int reconnects = 0;
+    static int rc2 = 0;
     // Loop until we're reconnected
     while (!client->connected())
     {
-        log_msg("Attempting MQTT connection...");
+        reconnects++;
+        rc2++;
+        static char buf[32];
+        snprintf(buf, 32, "fccclient-%02d%02d", rc2, reconnects);
+        log_msg("Attempting MQTT connection..." + String(reconnects));
+        
         // Attempt to connect
-        if (client->connect("fccmqttclient"))
+        if (client->connect(buf))
         {
             log_msg("connected");
             client->subscribe("#", 0);
             client->publish("fcce/config", "Formicula Control Center - aloha...");
+            reconnects = 0;
         }
         else
         {
+            if (reconnects > 20) {
+                log_msg("mqtt reconnections failed 20 times in a row ... rebooting");
+                ESP.restart();
+            }
             log_msg("mqtt connect failed, rc=" + String(client->state()) + "... retrying.");
             delay(2500);
         }
@@ -126,7 +138,6 @@ void mqtt_publish(String topic, String msg)
 
 void setup_mqtt(uiElements *u)
 {
-    return;
     ui = u;
     client = new PubSubClient{wClient};
     server = MDNS.queryHost(mqtt_server.c_str());
@@ -144,11 +155,6 @@ void loop_mqtt_dummy()
     static char msg[50];
     static unsigned long lastMsg = millis();
 
-    if (!WiFi.isConnected())
-    {
-        log_msg("Wifi not connected ... strange");
-        return;
-    }
 
     unsigned long now = millis();
     if (now - lastMsg > 2000)
@@ -176,7 +182,6 @@ void loop_mqtt_dummy()
 
 void loop_mqtt()
 {
-    return;
     if (!client->connected())
     {
         reconnect();

@@ -90,14 +90,16 @@ void setup()
                                  ctrl_temprange,
                                  *(new myRange<struct tm>{{0, 0, 7}, {0, 0, 22}}));
 
+#if 0
     dsls_1 = new myDS18B20(ui, "/Erde", 17, 5000);
     tsavg_erde = new avgSensor(ui, "/avgTempErde", std::list<genSensor *>{dsls_1}); // Circuit heater input sensor
     
     dhtms_1 = new myDHT(ui, "/Erdehin", 13, DHTesp::DHT22, 10000);
     hsavg_erde_hin = new humSensorMulti(ui, "/avgHumErdehin", std::list<genSensor *>{dhtms_1});
     tsavg_erde_hin = new tempSensorMulti(ui, "/avgTempErdehin", std::list<genSensor *>{dhtms_1});
-    
+#endif     
 #if 0
+    /* won't work with touch display due to IC2 issues */
     bmems_1 = new myBM280(ui, "/tempBME280");
     hsavg_berg = new humSensorMulti(ui, "/humBME280", std::list<genSensor *>{bmems_1});
     tsavg_berg = new tempSensorMulti(ui, "/tempBME280", std::list<genSensor *>{bmems_1});
@@ -117,7 +119,7 @@ void setup()
                                  myRange<float>{24.0, 27.0},
                                  ctrl_temprange);
     circuit_heater =
-        new myCircuit<genSensor>(ui, "Heizmatte", *tsavg_erde, *io_heater,
+        new myCircuit<genSensor>(ui, "Heizmatte", *trem2, *io_heater,
                                   5,
                                   myRange<float>{27.0, 28.0},
                                   myRange<float>{27.0, 28.0},

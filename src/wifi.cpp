@@ -90,5 +90,8 @@ void setup_wifi(void)
 
 void loop_wifi(void)
 {
+    if (!WiFi.isConnected())
+        log_msg("Wifi not connected ... strange");
+
     portal.handleClient();
 }
