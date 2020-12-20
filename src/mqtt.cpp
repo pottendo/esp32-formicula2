@@ -87,16 +87,22 @@ PubSubClient *client;
 void reconnect()
 {
     static int reconnects = 0;
-    static int rc2 = 0;
+    static unsigned long last = 0;
+    static unsigned long connection_wd = 0;
+
     // Loop until we're reconnected
-    while (!client->connected())
+    if ((!client->connected()) &&
+        ((millis() - last) > 2500))
     {
+        if (connection_wd == 0)
+            connection_wd = millis();
+        last = millis();
         reconnects++;
-        rc2++;
         static char buf[32];
-        snprintf(buf, 32, "fccclient-%02d%02d", rc2, reconnects);
+        snprintf(buf, 32, "fccclient-%04d", reconnects);
         log_msg("Attempting MQTT connection..." + String(reconnects));
-        
+        ui->set_mode(UI_WARNING);
+
         // Attempt to connect
         if (client->connect(buf))
         {
@@ -104,15 +110,19 @@ void reconnect()
             client->subscribe("#", 0);
             client->publish("fcce/config", "Formicula Control Center - aloha...");
             reconnects = 0;
+            connection_wd = 0;
+            ui->set_mode(UI_OPERATIONAL);
         }
         else
         {
-            if (reconnects > 20) {
-                log_msg("mqtt reconnections failed 20 times in a row ... rebooting");
+            unsigned long t1 = (millis() - connection_wd) / 1000;
+            log_msg("Connection lost for: " + String(t1) + "s...");
+            if (t1 > 300)
+            {
+                log_msg("mqtt reconnections failed for 5min... rebooting");
                 ESP.restart();
             }
             log_msg("mqtt connect failed, rc=" + String(client->state()) + "... retrying.");
-            delay(2500);
         }
     }
 }
@@ -127,7 +137,7 @@ void mqtt_publish(String topic, String msg)
 {
     if ((client == nullptr) ||
         (!client->connected() &&
-            (mqtt_reset() == false)))
+         (mqtt_reset() == false)))
     {
         log_msg("mqtt client not connected...");
         return;
@@ -154,7 +164,6 @@ void loop_mqtt_dummy()
     static long value = 0;
     static char msg[50];
     static unsigned long lastMsg = millis();
-
 
     unsigned long now = millis();
     if (now - lastMsg > 2000)
@@ -184,6 +193,7 @@ void loop_mqtt()
 {
     if (!client->connected())
     {
+        log_msg("lost mqtt connection retrying to connect");
         reconnect();
     }
     client->loop();
