@@ -29,6 +29,7 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
 {
     extern const lv_img_dsc_t splash_screen;
     extern const lv_img_dsc_t biohazard;
+    extern const lv_img_dsc_t wifi_warning;
 
     mutex = xSemaphoreCreateMutex();
     V(mutex);
@@ -48,10 +49,15 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
     modes[UI_OPERATIONAL] = lv_obj_create(NULL, NULL);
     modes[UI_SCREENSAVER] = lv_obj_create(NULL, NULL);
     modes[UI_ALARM] = lv_obj_create(NULL, NULL);
+    modes[UI_WARNING] = lv_obj_create(NULL, NULL);
 
     lv_obj_t *alarmpic = lv_img_create(modes[UI_ALARM], NULL);
     lv_img_set_src(alarmpic, &biohazard);
     lv_obj_align(alarmpic, modes[UI_ALARM], LV_ALIGN_CENTER, 0, 0);
+
+    lv_obj_t *wifiwarningpic = lv_img_create(modes[UI_WARNING], NULL);
+    lv_img_set_src(wifiwarningpic, &wifi_warning);
+    lv_obj_align(wifiwarningpic, modes[UI_WARNING], LV_ALIGN_CENTER, 0, 0);
 
     tab_view = lv_tabview_create(modes[UI_OPERATIONAL], NULL);
     tabs[UI_STATUS] = lv_tabview_add_tab(tab_view, "Status");
@@ -143,7 +149,7 @@ void uiElements::update()
     time_t now;
     time(&now);
     long diff = now - last_fcce_tick;
-    if (diff > 10)
+    if (diff > 15)
         snprintf(buf, 64, "#ff0000 FCCE last seen %lds ago", diff);
     else
         snprintf(buf, 64, "FCCE last seen %lds ago", diff);
@@ -158,7 +164,7 @@ void uiElements::update()
 
     /* take care of a life-signal to fcce */
     static unsigned long fcc_wd = millis();
-    if ((millis() - fcc_wd) > (5 * 1000))
+    if ((millis() - fcc_wd) > (10 * 1000))
     {
         static char buf[64];
         fcc_wd = millis();
@@ -531,6 +537,12 @@ void uiScreensaver::update()
         ui->set_mode(UI_ALARM);
         glob_delay = 5;
 
+        return;
+    }
+    if (ui->get_mode() == UI_WARNING)
+    {
+        digitalWrite(TFT_LED, LOW);
+        glob_delay = 5;
         return;
     }
     if (ui->get_mode() != UI_SCREENSAVER)

@@ -85,6 +85,7 @@ typedef enum
     UI_SPLASH = 0,
     UI_OPERATIONAL,
     UI_SCREENSAVER,
+    UI_WARNING,
     UI_ALARM
 } ui_modes_t;
 
@@ -115,7 +116,7 @@ class uiElements
     lv_obj_t *tab_view;
     lv_obj_t *tabs[5];                                                        /* 5 UI tabs */
     lv_obj_t *lastwidgets[5] = {nullptr, nullptr, nullptr, nullptr, nullptr}; /* remember last widget placed in tab to align next one */
-    lv_obj_t *modes[4];                                                       /* 4 operation modes: SPLASH (startup), OPERATIONAL, SCREENSAVER, ALARM */
+    lv_obj_t *modes[5];                                                       /* 4 operation modes: SPLASH (startup), OPERATIONAL, SCREENSAVER, ALARM */
     ui_modes_t act_mode;
     uiScreensaver saver;
     lv_obj_t *mwidget;
