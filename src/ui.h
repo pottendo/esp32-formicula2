@@ -116,7 +116,7 @@ class uiElements
     lv_obj_t *tab_view;
     lv_obj_t *tabs[5];                                                        /* 5 UI tabs */
     lv_obj_t *lastwidgets[5] = {nullptr, nullptr, nullptr, nullptr, nullptr}; /* remember last widget placed in tab to align next one */
-    lv_obj_t *modes[5];                                                       /* 4 operation modes: SPLASH (startup), OPERATIONAL, SCREENSAVER, ALARM */
+    lv_obj_t *modes[5];                                                       /* 5 operation modes: SPLASH (startup), OPERATIONAL, SCREENSAVER, WARNING, ALARM */
     ui_modes_t act_mode;
     uiScreensaver saver;
     lv_obj_t *mwidget;
@@ -125,6 +125,7 @@ class uiElements
     lv_obj_t *time_widget;
     lv_obj_t *load_widget;
     lv_obj_t *update_url;
+    lv_obj_t *event_log;
     const int buzzer_channel = 8;
     const int bgled_channel = buzzer_channel + 1;
     SemaphoreHandle_t mutex;
@@ -188,6 +189,7 @@ public:
     void update_sensor(genSensor *s);
     void update_config(String s);
     void set_switch(String s);
+    void log_event(const char *s);
 };
 
 class uiCommons

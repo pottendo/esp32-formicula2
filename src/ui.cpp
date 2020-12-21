@@ -91,6 +91,13 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
     update_url = lv_label_create(tabs[UI_CFG2], NULL);
     lv_label_set_text(update_url, String("http://" + WiFi.localIP().toString() + ":/_ac").c_str());
     add2ui(UI_CFG2, update_url);
+    event_log = lv_textarea_create(tabs[UI_CFG2], NULL);
+    lv_obj_set_size(event_log, 230, 72);
+    lv_textarea_set_scroll_propagation(event_log, true);
+    lv_textarea_set_text(event_log, "Event Log\n");
+    lv_textarea_set_cursor_hidden(event_log, true);
+
+    add2ui(UI_CFG2, event_log);
 
     add2ui(UI_CFG1, (new rangeSpinbox<myRange<struct tm>>(this, UI_CFG1, "Tag", def_day, 230, 72))->get_area());
 
@@ -323,6 +330,23 @@ void uiElements::update_config(String s)
 void uiElements::set_switch(String s)
 {
     log_msg("Setting switch via mqtt: " + s);
+}
+
+void uiElements::log_event(const char *s)
+{
+    uint32_t pos;
+    lv_textarea_add_char(event_log, '\n');
+    lv_textarea_add_text(event_log, s);
+    pos = lv_textarea_get_cursor_pos(event_log);
+    if (pos > 500)
+    {
+        /* delete older messages */
+        lv_textarea_set_cursor_pos(event_log, pos - 500);
+        for (int i = pos - 500; i > 0; i--)
+            lv_textarea_del_char(event_log);
+
+        lv_textarea_set_cursor_pos(event_log, LV_TEXTAREA_CURSOR_LAST);
+    }
 }
 
 /* button with label widget */

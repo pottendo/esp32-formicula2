@@ -47,6 +47,17 @@ void callback(char *t, byte *payload, unsigned int len)
 
     bool fcce_alive = false;
 
+    if (String(buf).startsWith("<ERR>"))
+    {
+        ui->ui_P();
+        ui->log_event(t);
+        ui->log_event(buf);
+        ui->ui_V();
+        log_msg(topic + String(buf));
+        fcce_alive = true;
+        goto out;
+    }
+
     /* check circuit controlled via mqtt */
     std::for_each(circuits.begin(), circuits.end(),
                   [&](genCircuit *c) {
@@ -76,6 +87,7 @@ void callback(char *t, byte *payload, unsigned int len)
                           fcce_alive = true;
                       }
                   });
+out:
     free(buf);
     if (fcce_alive)
         ui->update_config(String("/sensor-alive"));
