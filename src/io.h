@@ -121,7 +121,11 @@ public:
     virtual String _to_string(void) override { return String(get_data()); };
     virtual float get_data(void) override = 0;
     virtual void update_data(void) = 0;
-    virtual void cb(void) { update_data(); update_display(); }
+    virtual void cb(void)
+    {
+        update_data();
+        update_display();
+    }
 };
 
 class multiPropertySensor : public periodicSensor
@@ -158,7 +162,7 @@ public:
     }
     ~avgSensor() = default;
 
-    virtual void update_data(void) override { log_msg(name + ": update_data called - shouldn't happen!!!"); }
+    virtual void update_data(void) override { /* log_msg(name + ": update_data called - shouldn't happen!!!"); */ }
     virtual String _to_string(void) { return String(cached_data); };
 
     // virtual void update_display(float) = 0;
@@ -205,15 +209,17 @@ class myDS18B20 : public periodicSensor
     DallasTemperature *temps;
     int pin;
     int no_DS18B20 = 0;
-    float all_temps[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    float all_temps[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 public:
     myDS18B20(uiElements *ui, const String n, int pin, int perdiod = 2000);
     virtual ~myDS18B20() = default;
 
-    virtual String _to_string(void) {
+    virtual String _to_string(void)
+    {
         String s;
-        for (int i = 0; i < no_DS18B20; i++) {
+        for (int i = 0; i < no_DS18B20; i++)
+        {
             s += String(all_temps[i]);
             s += "C ";
         }
@@ -395,9 +401,12 @@ public:
     {
         add_data(v);
         log_msg("Remote Sensor " + get_name() + " updated to " + String(get_data()));
+        std::for_each(parents.begin(), parents.end(),
+                      [&](avgSensor *p) {
+                          p->add_data(v);
+                          p->update_data();
+                      });
         update_display();
-        temp_meter->set_val(27.0);
-        hum_meter->set_val(77.0);
     }
 };
 

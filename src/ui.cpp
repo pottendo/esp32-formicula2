@@ -92,11 +92,12 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
     lv_label_set_text(update_url, String("http://" + WiFi.localIP().toString() + ":/_ac").c_str());
     add2ui(UI_CFG2, update_url);
     event_log = lv_textarea_create(tabs[UI_CFG2], NULL);
-    lv_obj_set_size(event_log, 230, 72);
+    lv_obj_set_size(event_log, 330, 72);
     lv_textarea_set_scroll_propagation(event_log, true);
     lv_textarea_set_text(event_log, "Event Log\n");
     lv_textarea_set_cursor_hidden(event_log, true);
-
+    lv_textarea_set_sscrollbar_mode(event_log, LV_SCRLBAR_MODE_AUTO);
+    lv_obj_set_style_local_bg_color(event_log, LV_TEXTAREA_PART_BG, LV_STATE_DEFAULT, LV_COLOR_GRAY);
     add2ui(UI_CFG2, event_log);
 
     add2ui(UI_CFG1, (new rangeSpinbox<myRange<struct tm>>(this, UI_CFG1, "Tag", def_day, 230, 72))->get_area());
@@ -105,6 +106,26 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
     add2ui(UI_SETTINGS, (new settingsButton(this, UI_SETTINGS, "Alarm Sound", do_sound, 230, 48))->get_area());
     add2ui(UI_SETTINGS, (new settingsButton(this, UI_SETTINGS, "Manuell", do_manual, 230, 48))->get_area());
 
+    /* some action buttons */
+    add2ui(UI_SETTINGS, (new actionButton(this, UI_SETTINGS, "Reset FCCE",
+                                          [](uiCommons *p) {
+                                              p->get_ui()->log_event("reset fcce requested by user...");
+                                              mqtt_publish("fcc/reset-request", "user request");
+                                          }))
+                            ->get_area());
+
+    add2ui(UI_SETTINGS, (new actionButton(this, UI_SETTINGS, "Reset FCC",
+                                          [](uiCommons *p) {
+                                              p->get_ui()->log_event("reset fcc requested by user... rebooting.");
+                                              ESP.restart();
+                                          }))
+                            ->get_area());
+    add2ui(UI_SETTINGS, (new actionButton(this, UI_SETTINGS, "Clear Eventlog",
+                                          [](uiCommons *p) {
+                                              log_msg("clear of eventlog requested.");
+                                              p->get_ui()->reset_eventlog();
+                                          }))
+                            ->get_area());
     /* update screensaver, status widgets periodically per 1s */
     lv_task_create(update_task, 1000, LV_TASK_PRIO_LOWEST, this);
 
@@ -152,6 +173,10 @@ void uiElements::update()
         ip_initialized = true;
     }
 
+    // update overview stats
+    temp_meter->set_val(avg_temp->get_data());
+    hum_meter->set_val(avg_hum->get_data());
+
     // fcce alive
     time_t now;
     time(&now);
@@ -166,21 +191,21 @@ void uiElements::update()
     strftime(buf, 64, "Time: %a, %b %d %Y %H:%M:%S", &t);
     lv_label_set_text(time_widget, buf);
     // update load_widget
-    snprintf(buf, 64, "Load: %d%%", 100 - lv_task_get_idle());
-    lv_label_set_text(load_widget, buf);
+    //snprintf(buf, 64, "Load: %d%%", 100 - lv_task_get_idle());
+    //lv_label_set_text(load_widget, buf);
 
     /* take care of a life-signal to fcce */
     static unsigned long fcc_wd = millis();
     if ((millis() - fcc_wd) > (10 * 1000))
     {
-        static char buf[64];
         fcc_wd = millis();
         unsigned long upt = fcc_wd / 1000;
-        snprintf(buf, 64, "/uptime %02ldh:%02ldm:%02lds, free mem = %d",
+        snprintf(buf, 64, "FCC/uptime %02ldh:%02ldm:%02lds, mem = %d",
                  upt / 3600,
                  (upt % 3600) / 60,
                  (upt % 60),
                  ESP.getFreeHeap());
+        lv_label_set_text(load_widget, buf);
 
         mqtt_publish("fcc/cc-alive", buf);
     }
@@ -334,9 +359,13 @@ void uiElements::set_switch(String s)
 
 void uiElements::log_event(const char *s)
 {
+    static int count = 0;
     uint32_t pos;
-    lv_textarea_add_char(event_log, '\n');
+    char buf[12];
+    snprintf(buf, 12, "\n%03d:", count++);
+    lv_textarea_add_text(event_log, buf);
     lv_textarea_add_text(event_log, s);
+    log_msg(buf);
     pos = lv_textarea_get_cursor_pos(event_log);
     if (pos > 500)
     {
@@ -346,6 +375,14 @@ void uiElements::log_event(const char *s)
             lv_textarea_del_char(event_log);
 
         lv_textarea_set_cursor_pos(event_log, LV_TEXTAREA_CURSOR_LAST);
+    }
+}
+
+void uiElements::reset_eventlog(void)
+{
+    while (lv_textarea_get_cursor_pos(event_log))
+    {
+        lv_textarea_del_char(event_log);
     }
 }
 
@@ -496,8 +533,63 @@ void settingsButton::cb(lv_event_t e)
         state = lv_switch_get_state(obj);
     }
 }
-/* analogMeter */
 
+static tiny_hash_c<lv_obj_t *, actionButton *> actionButton_callbacks(10);
+static void actionButton_cb_wrapper(lv_obj_t *obj, lv_event_t e)
+{
+    actionButton_callbacks.retrieve(obj)->cb(e);
+}
+
+actionButton::actionButton(uiElements *ui, ui_tabs_t tab, String label, actionButton_cb f)
+    : uiCommons(ui)
+{
+    /* cool gum animation - from lvgl docs */
+    static lv_anim_path_t path_overshoot;
+    lv_anim_path_init(&path_overshoot);
+    lv_anim_path_set_cb(&path_overshoot, lv_anim_path_overshoot);
+
+    static lv_anim_path_t path_ease_out;
+    lv_anim_path_init(&path_ease_out);
+    lv_anim_path_set_cb(&path_ease_out, lv_anim_path_ease_out);
+
+    static lv_anim_path_t path_ease_in_out;
+    lv_anim_path_init(&path_ease_in_out);
+    lv_anim_path_set_cb(&path_ease_in_out, lv_anim_path_ease_in_out);
+
+    /*Gum-like button*/
+    static lv_style_t style_gum;
+    lv_style_init(&style_gum);
+    lv_style_set_transform_width(&style_gum, LV_STATE_PRESSED, 10);
+    lv_style_set_transform_height(&style_gum, LV_STATE_PRESSED, -10);
+    lv_style_set_value_letter_space(&style_gum, LV_STATE_PRESSED, 5);
+    lv_style_set_transition_path(&style_gum, LV_STATE_DEFAULT, &path_overshoot);
+    lv_style_set_transition_path(&style_gum, LV_STATE_PRESSED, &path_ease_in_out);
+    lv_style_set_transition_time(&style_gum, LV_STATE_DEFAULT, 250);
+    lv_style_set_transition_delay(&style_gum, LV_STATE_DEFAULT, 100);
+    lv_style_set_transition_prop_1(&style_gum, LV_STATE_DEFAULT, LV_STYLE_TRANSFORM_WIDTH);
+    lv_style_set_transition_prop_2(&style_gum, LV_STATE_DEFAULT, LV_STYLE_TRANSFORM_HEIGHT);
+    lv_style_set_transition_prop_3(&style_gum, LV_STATE_DEFAULT, LV_STYLE_VALUE_LETTER_SPACE);
+
+    lv_obj_t *btn = area = lv_btn_create(ui->get_tab(tab), NULL);
+    lv_obj_set_event_cb(btn, actionButton_cb_wrapper);
+    actionButton_callbacks.store(btn, this);
+    lv_obj_add_style(btn, LV_BTN_PART_MAIN, &style_gum);
+
+    lv_obj_t *l = lv_label_create(btn, NULL);
+    lv_label_set_text(l, label.c_str());
+
+    cb_func = f;
+}
+
+void actionButton::cb(lv_event_t e)
+{
+    if (e == LV_EVENT_CLICKED)
+    {
+        cb_func(this);
+    }
+}
+
+/* analogMeter */
 analogMeter::analogMeter(uiElements *ui, ui_tabs_t t, const char *n, myRange<float> r, const char *u) : uiCommons(ui), name(n), val(0.0), unit(u)
 {
     lv_obj_t *tmp;

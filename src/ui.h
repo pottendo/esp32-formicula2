@@ -133,6 +133,7 @@ class uiElements
     bool do_sound = false;
     bool do_manual = false;
     time_t last_fcce_tick;
+    genSensor *avg_temp, *avg_hum;
 
 public:
     uiElements(int idle_time);
@@ -190,6 +191,8 @@ public:
     void update_config(String s);
     void set_switch(String s);
     void log_event(const char *s);
+    void reset_eventlog(void);
+    void set_avg_sensors(genSensor *t, genSensor *h) { avg_temp = t, avg_hum = h; }
 };
 
 class uiCommons
@@ -204,6 +207,7 @@ public:
     ~uiCommons() = default;
 
     inline lv_obj_t *get_area() { return area; }
+    inline uiElements *get_ui(void) { return ui; }
 };
 
 /* class defintions */
@@ -248,6 +252,18 @@ public:
     ~settingsButton() = default;
 
     void cb(lv_event_t event);
+};
+
+typedef void (*actionButton_cb)(uiCommons *me);
+class actionButton : public uiCommons
+{
+    actionButton_cb cb_func;
+
+public:
+    actionButton(uiElements *ui, ui_tabs_t t, String label, actionButton_cb cb);
+    virtual ~actionButton() = default;
+
+    void cb(lv_event_t e);
 };
 
 /* analog display meter */

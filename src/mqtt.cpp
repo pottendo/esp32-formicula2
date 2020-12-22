@@ -112,6 +112,7 @@ void reconnect()
         reconnects++;
         static char buf[32];
         snprintf(buf, 32, "fccclient-%04d", reconnects);
+        ui->log_event("fcce not connected, reconnecting...");
         log_msg("Attempting MQTT connection..." + String(reconnects));
         ui->set_mode(UI_WARNING);
 
@@ -123,12 +124,13 @@ void reconnect()
             client->publish("fcce/config", "Formicula Control Center - aloha...");
             reconnects = 0;
             connection_wd = 0;
+            ui->log_event("fcce connected.");
             ui->set_mode(UI_OPERATIONAL);
         }
         else
         {
             unsigned long t1 = (millis() - connection_wd) / 1000;
-            log_msg("Connection lost for: " + String(t1) + "s...");
+            ui->log_event(String("Connection lost for: " + String(t1) + "s...").c_str());
             if (t1 > 300)
             {
                 log_msg("mqtt reconnections failed for 5min... rebooting");

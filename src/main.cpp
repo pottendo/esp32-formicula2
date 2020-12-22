@@ -30,6 +30,7 @@ const int ui_ss_timeout = 30; /* screensaver timeout in s */
 int glob_delay = 10;
 
 // module locals
+#if 0
 static myDHT *th1, *th2;
 static myDHT *dhtms_1;
 static myDS18B20 *dsls_1;
@@ -37,6 +38,7 @@ static myBM280 *bmems_1;
 static avgSensor *tsavg_erde;
 static humSensorMulti *hsavg_erde_hin, *hsavg_berg;
 static tempSensorMulti *tsavg_erde_hin, *tsavg_berg;
+#endif
 static remoteSensor *trem1, *trem2, *trem3;
 static remoteSensor *hrem1, *hrem2, *hrem3;
 
@@ -97,7 +99,7 @@ void setup()
     dhtms_1 = new myDHT(ui, "/Erdehin", 13, DHTesp::DHT22, 10000);
     hsavg_erde_hin = new humSensorMulti(ui, "/avgHumErdehin", std::list<genSensor *>{dhtms_1});
     tsavg_erde_hin = new tempSensorMulti(ui, "/avgTempErdehin", std::list<genSensor *>{dhtms_1});
-#endif     
+#endif
 #if 0
     /* won't work with touch display due to IC2 issues */
     bmems_1 = new myBM280(ui, "/tempBME280");
@@ -105,33 +107,38 @@ void setup()
     tsavg_berg = new tempSensorMulti(ui, "/tempBME280", std::list<genSensor *>{bmems_1});
 #endif
 
-    trem1 = new remoteSensor{ui, "/TempBerg1", 27.0};
-    hrem1 = new remoteSensor{ui, "/HumBerg1", 65.0};
-    trem2 = new remoteSensor{ui, "/TempErde1",65.0};
-    hrem2 = new remoteSensor{ui, "/HumErde1", 65.0};
-    trem3 = new remoteSensor{ui, "/TempBerg2", 65.0};
-    hrem3 = new remoteSensor{ui, "/HumBerg2", 65.0};
+    trem1 = new remoteSensor{ui, "/FCCETemp", 27.0};
+    hrem1 = new remoteSensor{ui, "/FCCEHum", 65.0};
+    trem2 = new remoteSensor{ui, "/ErdeTemp", 27.0};
+    hrem2 = new remoteSensor{ui, "/ErdeHum", 65.0};
+    trem3 = new remoteSensor{ui, "/BergTemp", 27.0};
+    hrem3 = new remoteSensor{ui, "/BergHum", 65.0};
+
+    genSensor *avg_temp = new avgSensor(ui, "Total Average Temp", std::list<genSensor *>{trem2, trem3});
+    genSensor *avg_hum = new avgSensor(ui, "Total Average Hum", std::list<genSensor *>{hrem2, hrem3});
+    ui->set_avg_sensors(avg_temp, avg_hum);
 
     circuit_infrared =
-        new myCircuit<genSensor>(ui, "Infrarot", *trem1, *io_infrared,
+        new myCircuit<genSensor>(ui, "Infrarot", *trem3, *io_infrared,
                                  5,
                                  myRange<float>{28.0, 29.0},
                                  myRange<float>{24.0, 27.0},
                                  ctrl_temprange);
     circuit_heater =
         new myCircuit<genSensor>(ui, "Heizmatte", *trem2, *io_heater,
-                                  5,
-                                  myRange<float>{27.0, 28.0},
-                                  myRange<float>{27.0, 28.0},
-                                  ctrl_temprange);
+                                 5,
+                                 myRange<float>{27.0, 28.0},
+                                 myRange<float>{27.0, 28.0},
+                                 ctrl_temprange);
     circuit_fan =
-        new myCircuit<genSensor>(ui, "Luefter", *hrem1, *io_fan,
+        new myCircuit<genSensor>(ui, "Luefter", *hrem3, *io_fan,
                                  5,
                                  myRange<float>{65.0, 75.0},
                                  myRange<float>{65.0, 75.0},
                                  ctrl_humrange); // inverse logic for fan as hum drops
+#if 0
     circuit_fog =
-        new myCircuit<genSensor>(ui, "Nebel Berg", *trem3, *io_fog,
+        new myCircuit<genSensor>(ui, "Nebel Berg", *hrem2, *io_fog,
                                  5,
                                  myRange<float>{60.0, 65.0},
                                  myRange<float>{60.0, 65.0},
@@ -142,6 +149,7 @@ void setup()
                                  myRange<float>{65.0, 80.0},
                                  myRange<float>{65.0, 80.0},
                                  ctrl_humrange);
+#endif
     circuit_dhum =
         new myCircuit<genSensor>(ui, "Feuchtigkeit", *hrem2, *io_humswitch,
                                  5,
@@ -160,8 +168,8 @@ void loop()
     loop_wifi();
     loop_mqtt();
 
-    ui->ui_P();         // mqtt & alarm handling is separate and if interaction with UI is needed, masterlock is needed.
-    lv_task_handler();  // most tasks (incl. local sensors) are managed by lvgl!
+    ui->ui_P();        // mqtt & alarm handling is separate and if interaction with UI is needed, masterlock is needed.
+    lv_task_handler(); // most tasks (incl. local sensors) are managed by lvgl!
     ui->ui_V();
     delay(glob_delay);
 }
