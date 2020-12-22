@@ -211,7 +211,7 @@ void loop_mqtt()
         reconnect();
     }
     client->loop();
-    loop_mqtt_dummy();
+    //loop_mqtt_dummy();
 }
 
 #if 0
