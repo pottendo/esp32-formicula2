@@ -49,8 +49,10 @@ static myCircuit<genSensor> *circuit_timeswitch;
 static myCircuit<genSensor> *circuit_infrared;
 static myCircuit<genSensor> *circuit_heater;
 static myCircuit<genSensor> *circuit_fan;
+#if 0
 static myCircuit<genSensor> *circuit_fog;
 static myCircuit<genSensor> *circuit_fog2;
+#endif
 static myCircuit<genSensor> *circuit_dhum;
 //static myCircuit<tempSensor> *circuit_spare2;
 
