@@ -37,6 +37,8 @@ public:
     virtual myRange<float> &get_range(bool) = 0;
 };
 
+typedef void (*circuit_fb_func_t)(genCircuit *c);
+
 template <typename Sensor>
 class myCircuit : public genCircuit
 {
@@ -47,13 +49,15 @@ class myCircuit : public genCircuit
     myRange<float> range_day;
     myRange<float> range_night;
     float period;
+    circuit_fb_func_t fb_mode_func;
+    bool fb_mode = false;
     lv_task_t *circuit_task;
     button_label_c *button;
     slider_label_c *slider_day, *slider_night;
 
 public:
-    myCircuit(uiElements *ui, const String &n, Sensor &s, ioSwitch &i, float p, myRange<float> rday, myRange<float> rnight, myRange<float> dr, myRange<struct tm> dc = {{0, 0, 0}, {0, 0, 24}})
-        : genCircuit(n), ui(ui), sensor(s), io(i), duty_cycle(dc), range_day(rday), range_night(rnight), period(p)
+    myCircuit(uiElements *ui, const String &n, Sensor &s, ioSwitch &i, float p, myRange<float> rday, myRange<float> rnight, myRange<float> dr, circuit_fb_func_t fb_func = nullptr, myRange<struct tm> dc = {{0, 0, 0}, {0, 0, 24}})
+        : genCircuit(n), ui(ui), sensor(s), io(i), duty_cycle(dc), range_day(rday), range_night(rnight), period(p), fb_mode_func(fb_func)
     {
         ui->add2ui(UI_CTRLS, (button =
                                   new button_label_c(ui, UI_CTRLS, this, 200, 48))
@@ -89,6 +93,13 @@ public:
             button->set(io.state());
     }
 
+    void set_fallback_mode(bool m)
+    {
+        fb_mode = m;
+        if (fb_mode && fb_mode_func)
+            fb_mode_func(this);
+    }
+
     static void update_circuit(lv_task_t *t)
     {
         myCircuit<Sensor> *c = static_cast<myCircuit<Sensor> *>(t->user_data);
@@ -104,7 +115,8 @@ public:
         log_msg(this->to_string());
         if (!time_obj->get_time(&t))
         {
-            log_msg(circuit_name + "Failed to obtain time");
+            ui->log_event((circuit_name + "Failed to obtain time").c_str());
+            set_fallback_mode(true);
             return;
         }
         if (duty_cycle.is_in(t))
@@ -116,9 +128,20 @@ public:
                 log_msg(circuit_name + range.to_string() + " switching on - " + String(io.state()));
                 io.set(HIGH, true); // force switching on
                 button->set(io.state());
+                set_fallback_mode(false);
                 return;
             }
             float v1 = sensor.get_data();
+            if (isnan(v1))
+            {
+                ui->log_event(String(get_name() + ": sens fail-fallback mode.").c_str());
+                set_fallback_mode(true);
+                return;
+            }
+            else
+            {
+                set_fallback_mode(false);
+            }
             if (range.is_in(v1))
             {
                 log_msg(circuit_name + ": " + (def_day.is_in(t) ? "day" : "night") +
