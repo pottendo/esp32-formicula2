@@ -92,6 +92,7 @@ void setup()
                                  myRange<float>{0.0, 0.0},
                                  myRange<float>{0.0, 0.0},
                                  ctrl_temprange,
+                                 nullptr,
                                  *(new myRange<struct tm>{{0, 0, 7}, {0, 0, 22}}));
 
 #if 0
@@ -131,7 +132,19 @@ void setup()
                                  5,
                                  myRange<float>{27.0, 28.0},
                                  myRange<float>{27.0, 28.0},
-                                 ctrl_temprange);
+                                 ctrl_temprange,
+                                 [](genCircuit *c) {
+                                     static unsigned long last = 0;
+                                     static uint8_t state = HIGH;
+
+                                     if ((millis() - last) > 1000 * 3 /* *60*30 for 30 minutes interval */)
+                                     {
+                                         log_msg(c->get_name() + ": running fallback");
+                                         c->io_set(((state == HIGH) ? LOW : HIGH), true, true);
+                                         state = !state;
+                                         last = millis();
+                                     }
+                                 });
     circuit_fan =
         new myCircuit<genSensor>(ui, "Luefter", *hrem3, *io_fan,
                                  5,
