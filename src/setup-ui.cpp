@@ -37,6 +37,7 @@ void log_msg(const char *s)
 	V(ui_mutex);
 #endif
 	printf("%s\n", s);
+	fflush(stdout);
 }
 
 void log_msg(String s)
