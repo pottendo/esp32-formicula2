@@ -112,20 +112,20 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
                                               p->get_ui()->log_event("reset fcce requested by user...");
                                               mqtt_publish("fcc/reset-request", "user request");
                                           }))
-                            ->get_area());
+                            ->get_area(), 0, 5);
 
     add2ui(UI_SETTINGS, (new actionButton(this, UI_SETTINGS, "Reset FCC",
                                           [](uiCommons *p) {
                                               p->get_ui()->log_event("reset fcc requested by user... rebooting.");
                                               ESP.restart();
                                           }))
-                            ->get_area());
+                            ->get_area(), 0, 5);
     add2ui(UI_SETTINGS, (new actionButton(this, UI_SETTINGS, "Clear Eventlog",
                                           [](uiCommons *p) {
                                               log_msg("clear of eventlog requested.");
                                               p->get_ui()->reset_eventlog();
                                           }))
-                            ->get_area());
+                            ->get_area(), 0, 5);
     /* update screensaver, status widgets periodically per 1s */
     lv_task_create(update_task, 1000, LV_TASK_PRIO_LOWEST, this);
 
