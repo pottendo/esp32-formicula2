@@ -118,7 +118,13 @@ public:
     periodicSensor(uiElements *ui, const String n, int period = 2000);
     virtual ~periodicSensor() = default;
     static void periodic_wrapper(lv_task_t *t);
-    virtual String _to_string(void) override { return String(get_data()); };
+    virtual String _to_string(void) override
+    {
+        float v = get_data();
+        if (isnan(v))
+            return String("#ff0000 <unknown>");
+        return String(v);
+    };
     virtual float get_data(void) override = 0;
     virtual void update_data(void) = 0;
     virtual void cb(void)
@@ -162,7 +168,9 @@ public:
     }
     ~avgSensor() = default;
 
-    virtual void update_data(void) override { /* log_msg(name + ": update_data called - shouldn't happen!!!"); */ }
+    virtual void update_data(void) override
+    { /* log_msg(name + ": update_data called - shouldn't happen!!!"); */
+    }
     virtual String _to_string(void) { return String(cached_data); };
 
     // virtual void update_display(float) = 0;
@@ -175,29 +183,48 @@ public:
     float get_data() override
     {
         float res = 0.0;
+        int crop = 0;
+
+        std::list<float> s;
         P(mutex);
-        std::array<float, sample_no> s = data;
+        for (size_t i = 0; i < data.size(); i++)
+            if (!isnan(data[i]))
+                s.push_back(data[i]);
         V(mutex);
-        std::sort(s.begin(), s.end());
+
+        if (s.size() > 2)
+        {
+            s.sort();
+            crop = (s.size() > 6) ? 2 : 1;
+        }
+        while (crop-- > 0)
+        {
+            s.pop_front();
+            s.pop_back();
+        }
+        for (auto i = s.begin(); i != s.end(); i++)
+            res = res + *i;
+        res = res / s.size();
+        cached_data = res;
 #if 0
         printf("%s data:           [", name.c_str());
+        fflush(stdout);
         for (int i = 0; i < sample_no; i++)
         {
             printf("%.2f,", data[i]);
+            fflush(stdout);
         }
         printf("]\n");
+        fflush(stdout);
         printf("%s sorted data:    [", name.c_str());
-        for (int i = 0; i < sample_no; i++)
+        fflush(stdout);
+        for (auto i = s.begin(); i != s.end(); i++)
         {
-            printf("%.2f,", s[i]);
+            printf("%.2f,", *i);
+            fflush(stdout);
         }
         printf("]\n");
 #endif
-        for (int i = 2; i < sample_no - 2; i++)
-            res = res + s[i];
-        res = res / (sample_no - 4);
-        //        update_display(res);
-        cached_data = res;
         return res;
     }
 };
@@ -382,7 +409,13 @@ public:
     virtual ~remoteSensor() = default;
     virtual void update_data(void) override { log_msg(name + ": update_data called - shouldn't happen!!!"); }
 
-    virtual String _to_string(void) { return String(get_data()); }
+    virtual String _to_string(void)
+    {
+        float v = get_data();
+        if (isnan(v))
+            return String("#ff0000 <unknown>");
+        return String(v);
+    };
 
     virtual float get_data(void) override
     {
