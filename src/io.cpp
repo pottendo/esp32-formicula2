@@ -73,7 +73,6 @@ void myDS18B20::update_data(void)
             error = false;
             //log_msg(name + ":" + String(all_temps[i]) + " Sensor " + String(i + 1) + "/" + String(no_DS18B20));
             mqtt_publish("fcc" + name + "-" + String(i), String(all_temps[i]));
-            temp_meter->set_val(all_temps[i]);
         }
         else
         {

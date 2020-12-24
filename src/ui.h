@@ -80,6 +80,8 @@ class tiny_hash_c; // forward declaration
 template <typename T>
 class rangeSpinbox;
 
+class analogMeter;
+
 typedef enum
 {
     UI_SPLASH = 0,
@@ -133,7 +135,8 @@ class uiElements
     bool do_sound = false;
     bool do_manual = false;
     time_t last_fcce_tick;
-    genSensor *avg_temp, *avg_hum;
+    analogMeter *avg_temp_berg, *avg_temp_erde, *avg_hum_berg, *avg_hum_erde;
+    genSensor *sens_temp_berg, *sens_temp_erde, *sens_hum_berg, *sens_hum_erde;
 
 public:
     uiElements(int idle_time);
@@ -192,7 +195,12 @@ public:
     void set_switch(String s);
     void log_event(const char *s);
     void reset_eventlog(void);
-    void set_avg_sensors(genSensor *t, genSensor *h) { avg_temp = t, avg_hum = h; }
+    void set_avg_sensors(genSensor *t1, genSensor *t2, genSensor *h1, genSensor *h2)
+    {
+        sens_temp_berg = t1, sens_temp_erde = t2;
+        sens_hum_berg = h1, sens_hum_erde = h2;
+    }
+    bool is_critical(void);
 };
 
 class uiCommons
@@ -294,9 +302,6 @@ public:
 
     inline float get_val() { return val; }
 };
-
-extern analogMeter *temp_meter;
-extern analogMeter *hum_meter;
 
 /* helpers */
 template <typename T, typename I>

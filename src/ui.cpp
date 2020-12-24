@@ -21,10 +21,6 @@
 #include "ui.h"
 #include "circuits.h"
 
-// globals
-analogMeter *temp_meter;
-analogMeter *hum_meter;
-
 uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
 {
     extern const lv_img_dsc_t splash_screen;
@@ -67,13 +63,21 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
     tabs[UI_SETTINGS] = lv_tabview_add_tab(tab_view, "Set");
 
     /* tab 1 - Status */
-    temp_meter = new analogMeter(this, UI_STATUS, "Temperatur", ctrl_temprange, "C");
-    add2ui(UI_STATUS, temp_meter->get_area());
-    temp_meter->set_val(27.0);
+    avg_temp_berg = new analogMeter(this, UI_STATUS, "Temperatur Berg", ctrl_temprange, "C");
+    add2ui(UI_STATUS, avg_temp_berg->get_area());
+    avg_temp_berg->set_val(27.0);
 
-    hum_meter = new analogMeter(this, UI_STATUS, "Feuchtigkeit", ctrl_humrange, "\%");
-    add2ui(UI_STATUS, hum_meter->get_area());
-    hum_meter->set_val(65.0);
+    avg_temp_erde = new analogMeter(this, UI_STATUS, "Temperatur Erde", ctrl_temprange, "C");
+    add2ui(UI_STATUS, avg_temp_erde->get_area());
+    avg_temp_erde->set_val(27.0);
+
+    avg_hum_berg = new analogMeter(this, UI_STATUS, "Feuchtigkeit Berg", ctrl_humrange, "\%");
+    add2ui(UI_STATUS, avg_hum_berg->get_area());
+    avg_hum_berg->set_val(65.0);
+
+    avg_hum_erde = new analogMeter(this, UI_STATUS, "Feuchtigkeit Erde", ctrl_humrange, "\%");
+    add2ui(UI_STATUS, avg_hum_erde->get_area());
+    avg_hum_erde->set_val(65.0);
 
     time_widget = lv_label_create(tabs[UI_CFG2], NULL);
     lv_label_set_text(time_widget, "Time: ");
@@ -107,25 +111,22 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
     add2ui(UI_SETTINGS, (new settingsButton(this, UI_SETTINGS, "Manuell", do_manual, 230, 48))->get_area());
 
     /* some action buttons */
-    add2ui(UI_SETTINGS, (new actionButton(this, UI_SETTINGS, "Reset FCCE",
-                                          [](uiCommons *p) {
-                                              p->get_ui()->log_event("reset fcce requested by user...");
-                                              mqtt_publish("fcc/reset-request", "user request");
-                                          }))
-                            ->get_area(), 0, 5);
+    add2ui(UI_SETTINGS, (new actionButton(this, UI_SETTINGS, "Reset FCCE", [](uiCommons *p) {
+                            p->get_ui()->log_event("reset fcce requested by user...");
+                            mqtt_publish("fcc/reset-request", "user request");
+                        }))->get_area(),
+           0, 5);
 
-    add2ui(UI_SETTINGS, (new actionButton(this, UI_SETTINGS, "Reset FCC",
-                                          [](uiCommons *p) {
-                                              p->get_ui()->log_event("reset fcc requested by user... rebooting.");
-                                              ESP.restart();
-                                          }))
-                            ->get_area(), 0, 5);
-    add2ui(UI_SETTINGS, (new actionButton(this, UI_SETTINGS, "Clear Eventlog",
-                                          [](uiCommons *p) {
-                                              log_msg("clear of eventlog requested.");
-                                              p->get_ui()->reset_eventlog();
-                                          }))
-                            ->get_area(), 0, 5);
+    add2ui(UI_SETTINGS, (new actionButton(this, UI_SETTINGS, "Reset FCC", [](uiCommons *p) {
+                            p->get_ui()->log_event("reset fcc requested by user... rebooting.");
+                            ESP.restart();
+                        }))->get_area(),
+           0, 5);
+    add2ui(UI_SETTINGS, (new actionButton(this, UI_SETTINGS, "Clear Eventlog", [](uiCommons *p) {
+                            log_msg("clear of eventlog requested.");
+                            p->get_ui()->reset_eventlog();
+                        }))->get_area(),
+           0, 5);
     /* update screensaver, status widgets periodically per 1s */
     lv_task_create(update_task, 1000, LV_TASK_PRIO_LOWEST, this);
 
@@ -174,8 +175,10 @@ void uiElements::update()
     }
 
     // update overview stats
-    temp_meter->set_val(avg_temp->get_data());
-    hum_meter->set_val(avg_hum->get_data());
+    avg_temp_berg->set_val(sens_temp_berg->get_data());
+    avg_temp_erde->set_val(sens_temp_erde->get_data());
+    avg_hum_berg->set_val(sens_hum_berg->get_data());
+    avg_hum_erde->set_val(sens_hum_erde->get_data());
 
     // fcce alive
     time_t now;
@@ -386,6 +389,20 @@ void uiElements::reset_eventlog(void)
     }
 }
 
+bool uiElements::is_critical(void)
+{
+    if ((avg_temp_berg->get_val() < ctrl_temprange.get_lbound()) ||
+        (avg_temp_erde->get_val() < ctrl_temprange.get_lbound()) ||
+        (avg_hum_berg->get_val() < ctrl_humrange.get_lbound()) ||
+        (avg_hum_erde->get_val() < ctrl_humrange.get_lbound()) ||
+        (avg_temp_berg->get_val() > ctrl_temprange.get_ubound()) ||
+        (avg_temp_erde->get_val() > ctrl_temprange.get_ubound()) ||
+        (avg_hum_berg->get_val() > ctrl_humrange.get_ubound()) ||
+        (avg_hum_erde->get_val() > ctrl_humrange.get_ubound()))
+        return true;
+    return false;
+}
+
 /* button with label widget */
 static tiny_hash_c<lv_obj_t *, button_label_c *> button_callbacks(10);
 static void button_cb_wrapper(lv_obj_t *obj, lv_event_t e)
@@ -594,7 +611,7 @@ analogMeter::analogMeter(uiElements *ui, ui_tabs_t t, const char *n, myRange<flo
 {
     lv_obj_t *tmp;
     area = lv_obj_create(ui->get_tab(t), NULL);
-    lv_obj_set_size(area, 230, 126);
+    lv_obj_set_size(area, 200, 126);
 
     lmeter = lv_linemeter_create(area, NULL);
     lv_linemeter_set_range(lmeter, r.get_lbound(), r.get_ubound()); /*Set the range*/
@@ -643,10 +660,7 @@ void uiScreensaver::update()
         return;
     }
 
-    if ((temp_meter->get_val() < ctrl_temprange.get_lbound()) ||
-        (temp_meter->get_val() > ctrl_temprange.get_ubound()) ||
-        (hum_meter->get_val() < ctrl_humrange.get_lbound()) ||
-        (hum_meter->get_val() > ctrl_humrange.get_ubound()))
+    if (ui->is_critical())
     {
         //int t = digitalRead(TFT_LED);
         //digitalWrite(TFT_LED, (t == HIGH) ? LOW : HIGH);

@@ -39,8 +39,8 @@ static avgSensor *tsavg_erde;
 static humSensorMulti *hsavg_erde_hin, *hsavg_berg;
 static tempSensorMulti *tsavg_erde_hin, *tsavg_berg;
 #endif
-static remoteSensor *trem1, *trem2, *trem3;
-static remoteSensor *hrem1, *hrem2, *hrem3;
+static remoteSensor *fcce_temp, *berg_temp, *erde_temp;
+static remoteSensor *fcce_hum, *berg_hum, *erde_hum;
 
 static timeSwitch *tswitch;
 static ioDigitalIO *io_tswitch, *io_infrared, *io_heater, *io_fan, *io_fog /*, *io_spare2*/;
@@ -68,15 +68,7 @@ void setup()
     //setup_io();
     setup_wifi();
     setup_mqtt(ui);
-#if 0    
-    th1 = new myDHT("Berg", 17, ui, DHTesp::DHT22);
-    th2 = new myDHT("Erde", 13, ui, DHTesp::DHT22);
-    tsensor_berg = new tempSensor(std::list<myDHT *>{th1}); // kreis "Infrarot"
-    tsensor_erde = new tempSensor(std::list<myDHT *>{th2}); // kreis "Heizmatte"
 
-    hsensor_berg = new humSensor(std::list<myDHT *>{th1});
-    hsensor_erde = new humSensor(std::list<myDHT *>{th2});
-#endif
     tswitch = new timeSwitch(ui, "Tag/Nacht");
     io_tswitch = new ioDigitalIO(27);
     io_infrared = new ioDigitalIO(12);
@@ -110,25 +102,29 @@ void setup()
     tsavg_berg = new tempSensorMulti(ui, "/tempBME280", std::list<genSensor *>{bmems_1});
 #endif
 
-    trem1 = new remoteSensor{ui, "/FCCETemp", 27.0};
-    hrem1 = new remoteSensor{ui, "/FCCEHum", 65.0};
-    trem2 = new remoteSensor{ui, "/ErdeTemp", 27.0};
-    hrem2 = new remoteSensor{ui, "/ErdeHum", 65.0};
-    trem3 = new remoteSensor{ui, "/BergTemp", 27.0};
-    hrem3 = new remoteSensor{ui, "/BergHum", 65.0};
+    fcce_temp = new remoteSensor{ui, "/FCCETemp", 27.0};
+    fcce_hum = new remoteSensor{ui, "/FCCEHum", 65.0};
+    erde_temp = new remoteSensor{ui, "/ErdeTemp", 27.0};
+    erde_hum = new remoteSensor{ui, "/ErdeHum", 65.0};
+    berg_temp = new remoteSensor{ui, "/BergTemp", 27.0};
+    berg_hum = new remoteSensor{ui, "/BergHum", 65.0};
 
-    genSensor *avg_temp = new avgSensor(ui, "Total Average Temp", std::list<genSensor *>{trem2, trem3});
-    genSensor *avg_hum = new avgSensor(ui, "Total Average Hum", std::list<genSensor *>{hrem2, hrem3});
-    ui->set_avg_sensors(avg_temp, avg_hum);
+#if 0
+    genSensor *avg_temp1 = new avgSensor(ui, "Total Average Temp", std::list<genSensor *>{berg_temp});
+    genSensor *avg_hum1 = new avgSensor(ui, "Total Average Hum", std::list<genSensor *>{erde_hum, berg_hum});
+    genSensor *avg_temp2 = new avgSensor(ui, "Total Average Temp", std::list<genSensor *>{berg_temp});
+    genSensor *avg_hum2 = new avgSensor(ui, "Total Average Hum", std::list<genSensor *>{erde_hum, berg_hum});
+#endif
+    ui->set_avg_sensors(berg_temp, erde_temp, berg_hum, erde_hum);
 
     circuit_infrared =
-        new myCircuit<genSensor>(ui, "Infrarot", *trem3, *io_infrared,
+        new myCircuit<genSensor>(ui, "Infrarot", *berg_temp, *io_infrared,
                                  5,
                                  myRange<float>{28.0, 29.0},
                                  myRange<float>{24.0, 27.0},
                                  ctrl_temprange);
     circuit_heater =
-        new myCircuit<genSensor>(ui, "Heizmatte", *trem2, *io_heater,
+        new myCircuit<genSensor>(ui, "Heizmatte", *erde_temp, *io_heater,
                                  5,
                                  myRange<float>{27.0, 28.0},
                                  myRange<float>{27.0, 28.0},
@@ -137,7 +133,7 @@ void setup()
                                      static unsigned long last = 0;
                                      static uint8_t state = HIGH;
 
-                                     if ((millis() - last) > 1000 * 3 /* *60*30 for 30 minutes interval */)
+                                     if ((millis() - last) > 1000 * 60 * 30) /* for 30 minutes interval */
                                      {
                                          log_msg(c->get_name() + ": running fallback");
                                          c->io_set(((state == HIGH) ? LOW : HIGH), true, true);
@@ -146,11 +142,19 @@ void setup()
                                      }
                                  });
     circuit_fan =
-        new myCircuit<genSensor>(ui, "Luefter", *hrem3, *io_fan,
+        new myCircuit<genSensor>(ui, "Luefter", *berg_hum, *io_fan,
                                  5,
-                                 myRange<float>{65.0, 75.0},
-                                 myRange<float>{65.0, 75.0},
+                                 myRange<float>{75.0, 99.9},
+                                 myRange<float>{75.0, 99.9},
                                  ctrl_humrange); // inverse logic for fan as hum drops
+
+    circuit_dhum =
+        new myCircuit<genSensor>(ui, "Feuchtigkeit", *erde_hum, *io_humswitch,
+                                 5,
+                                 myRange<float>{65.0, 80.0},
+                                 myRange<float>{65.0, 80.0},
+                                 ctrl_humrange);
+
 #if 0
     circuit_fog =
         new myCircuit<genSensor>(ui, "Nebel Berg", *hrem2, *io_fog,
@@ -165,17 +169,9 @@ void setup()
                                  myRange<float>{65.0, 80.0},
                                  ctrl_humrange);
 #endif
-    circuit_dhum =
-        new myCircuit<genSensor>(ui, "Feuchtigkeit", *hrem2, *io_humswitch,
-                                 5,
-                                 myRange<float>{65.0, 80.0},
-                                 myRange<float>{65.0, 80.0},
-                                 ctrl_humrange);
+
     delay(25);
     ui->set_mode(UI_OPERATIONAL);
-#if 0
-    circuit_spare2 = new myCircuit<tempSensor>(String("Spare2"), *tsensor, *io_spare2, 4);
-#endif
 }
 
 void loop()
