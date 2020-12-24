@@ -244,7 +244,7 @@ int uiElements::biohazard_alarm(void)
             initialized = false;
             ledcDetachPin(BUZZER_PIN);
             ledcDetachPin(TFT_LED);
-            digitalWrite(TFT_LED, LOW); /* turn on display */
+            //digitalWrite(TFT_LED, LOW); /* turn on display */
         }
         return 500;
     }
@@ -666,7 +666,6 @@ void uiScreensaver::update()
         //digitalWrite(TFT_LED, (t == HIGH) ? LOW : HIGH);
         ui->set_mode(UI_ALARM);
         glob_delay = 5;
-
         return;
     }
     if (ui->get_mode() == UI_WARNING)
