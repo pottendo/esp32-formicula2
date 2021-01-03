@@ -113,7 +113,7 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
     /* some action buttons */
     add2ui(UI_SETTINGS, (new actionButton(this, UI_SETTINGS, "Reset FCCE", [](uiCommons *p) {
                             p->get_ui()->log_event("reset fcce requested by user...");
-                            mqtt_publish("fcc/reset-request", "user request");
+                            mqtt_publish("/reset-request", "user request");
                         }))->get_area(),
            0, 5);
 
@@ -184,7 +184,7 @@ void uiElements::update()
     time_t now;
     time(&now);
     long diff = now - last_fcce_tick;
-    if (diff > 15)
+    if (diff > 91)
         snprintf(buf, 64, "#ff0000 FCCE last seen %lds ago", diff);
     else
         snprintf(buf, 64, "FCCE last seen %lds ago", diff);
@@ -199,18 +199,18 @@ void uiElements::update()
 
     /* take care of a life-signal to fcce */
     static unsigned long fcc_wd = millis();
-    if ((millis() - fcc_wd) > (10 * 1000))
+    if ((millis() - fcc_wd) > (90 * 1000))
     {
         fcc_wd = millis();
         unsigned long upt = fcc_wd / 1000;
-        snprintf(buf, 64, "FCC/uptime %02ldh:%02ldm:%02lds, mem = %d",
+        snprintf(buf, 64, "fcc/uptime %02ldh:%02ldm:%02lds, mem = %d",
                  upt / 3600,
                  (upt % 3600) / 60,
                  (upt % 60),
                  ESP.getFreeHeap());
         lv_label_set_text(load_widget, buf);
 
-        mqtt_publish("fcc/cc-alive", buf);
+        mqtt_publish("/cc-alive", buf);
     }
 };
 

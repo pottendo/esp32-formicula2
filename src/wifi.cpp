@@ -31,6 +31,7 @@ myTime *time_obj;
 static WebServer ip_server;
 static AutoConnect portal(ip_server);
 static AutoConnectConfig config;
+static const String hostname = "fcc";
 
 myTime::myTime()
 {
@@ -54,7 +55,9 @@ void printLocalTime()
 
 static void rootPage(void)
 {
-    char content[] = "Formicula!";
+    String body;
+    body = String("Formicula Control Center - go <a href=\"http://") + WiFi.localIP().toString().c_str() + "/_ac\"> fcc admin page/a>";
+    const char *content = body.c_str();
     ip_server.send(200, "text/plain", content);
 }
 
@@ -63,6 +66,7 @@ void setup_wifi(void)
     log_msg("Setting up Wifi...");
     ip_server.on("/", rootPage);
     config.ota = AC_OTA_BUILTIN;
+    config.hostName = hostname;
     portal.config(config);
     if (portal.begin())
     {
@@ -77,10 +81,16 @@ void setup_wifi(void)
     }
 #endif
     log_msg("done.\nSetting up local time...");
+    printf("fcc IP = %s, GW = %s, DNS = %s\n",
+           WiFi.localIP().toString().c_str(),
+           WiFi.gatewayIP().toString().c_str(),
+           WiFi.dnsIP().toString().c_str());
+    //WiFi.printDiag(Serial);
+
     //init and get the time
     time_obj = new myTime();
 
-    if (!MDNS.begin("fcc"))
+    if (!MDNS.begin(hostname.c_str()))
     {
         log_msg("Setup of DNS for fcc failed.");
     }

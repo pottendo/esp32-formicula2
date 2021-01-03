@@ -357,7 +357,7 @@ public:
     {
         float v = s->get_temp();
         add_data(v);
-        mqtt_publish("fcc" + name, String(v));
+        mqtt_publish(name, String(v));
     }
 
 #if 0
@@ -379,7 +379,7 @@ public:
     {
         float v = s->get_hum();
         add_data(v);
-        mqtt_publish("fcc" + name, String(v));
+        mqtt_publish(name, String(v));
     }
 
 #if 0

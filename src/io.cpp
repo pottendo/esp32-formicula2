@@ -72,7 +72,7 @@ void myDS18B20::update_data(void)
         {
             error = false;
             //log_msg(name + ":" + String(all_temps[i]) + " Sensor " + String(i + 1) + "/" + String(no_DS18B20));
-            mqtt_publish("fcc" + name + "-" + String(i), String(all_temps[i]));
+            mqtt_publish(name + "-" + String(i), String(all_temps[i]));
         }
         else
         {
