@@ -149,10 +149,10 @@ void setup()
                                  ctrl_humrange); // inverse logic for fan as hum drops
 
     circuit_dhum =
-        new myCircuit<genSensor>(ui, "Feuchtigkeit", *erde_hum, *io_humswitch,
+        new myCircuit<genSensor>(ui, "Feuchtigkeit", *berg_hum, *io_fog,
                                  5,
-                                 myRange<float>{65.0, 80.0},
-                                 myRange<float>{65.0, 80.0},
+                                 myRange<float>{60.0, 65.0},
+                                 myRange<float>{60.0, 65.0},
                                  ctrl_humrange);
 
 #if 0
