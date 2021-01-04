@@ -28,9 +28,13 @@
 
 myTime *time_obj;
 
+#define USE_AC
+#ifdef USE_AC
 static WebServer ip_server;
 static AutoConnect portal(ip_server);
 static AutoConnectConfig config;
+#endif
+
 static const String hostname = "fcc";
 
 myTime::myTime()
@@ -45,14 +49,21 @@ myTime::myTime()
 void printLocalTime()
 {
     struct tm timeinfo;
-    if (!getLocalTime(&timeinfo))
+    int err = 10;
+    while (!getLocalTime(&timeinfo) && err--)
     {
-        Serial.println("Failed to obtain time");
-        return;
+        printf("Failed to obtain time - %d\n", 10 - err);
+        delay(500);
+    }
+    if (err <= 0) {
+        // tried for 10s to get time, better reboot and try again
+        log_msg("failed to obtain time...rebooting.");
+        ESP.restart();
     }
     Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
 }
 
+#ifdef USE_AC
 static void rootPage(void)
 {
     String body;
@@ -60,10 +71,12 @@ static void rootPage(void)
     const char *content = body.c_str();
     ip_server.send(200, "text/plain", content);
 }
+#endif
 
 void setup_wifi(void)
 {
     log_msg("Setting up Wifi...");
+#ifdef USE_AC
     ip_server.on("/", rootPage);
     config.ota = AC_OTA_BUILTIN;
     config.hostName = hostname;
@@ -72,11 +85,11 @@ void setup_wifi(void)
     {
         Serial.println("WiFi connected: " + WiFi.localIP().toString());
     }
-#if 0
-    WiFi.begin("pottendo_EXT", "poTtendosWLAN");
+#else
+    WiFi.begin("pottendoT", "poTtendosWLAN");
     while (!WiFi.isConnected())
     {
-        log_msg("...failed, retrying");
+        log_msg("WiFi connection failed, retrying...");
         delay(500);
     }
 #endif
@@ -94,14 +107,13 @@ void setup_wifi(void)
     {
         log_msg("Setup of DNS for fcc failed.");
     }
-    //setup_OTA(&ip_server);
-    //ip_server.begin();
 }
 
 void loop_wifi(void)
 {
     if (!WiFi.isConnected())
         log_msg("Wifi not connected ... strange");
-
+#ifdef USE_AC
     portal.handleClient();
+#endif
 }

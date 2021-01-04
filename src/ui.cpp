@@ -184,7 +184,7 @@ void uiElements::update()
     time_t now;
     time(&now);
     long diff = now - last_fcce_tick;
-    if (diff > 91)
+    if (diff > 35)
         snprintf(buf, 64, "#ff0000 FCCE last seen %lds ago", diff);
     else
         snprintf(buf, 64, "FCCE last seen %lds ago", diff);
@@ -199,7 +199,7 @@ void uiElements::update()
 
     /* take care of a life-signal to fcce */
     static unsigned long fcc_wd = millis();
-    if ((millis() - fcc_wd) > (90 * 1000))
+    if ((millis() - fcc_wd) > (30 * 1000))
     {
         fcc_wd = millis();
         unsigned long upt = fcc_wd / 1000;

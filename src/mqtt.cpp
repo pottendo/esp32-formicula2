@@ -1,11 +1,12 @@
 #include <Arduino.h>
 #include <MQTT.h>
 #include <list>
+#include <ESPmDNS.h>
 #include "ui.h"
 #include "circuits.h"
 
 // myqtthub credentials
-#define EXTMQTT
+//#define EXTMQTT
 #ifdef EXTMQTT
 #include <WiFiClientSecure.h>
 static const char *mqtt_server = "node02.myqtthub.com";
@@ -16,7 +17,8 @@ static const char *pw = "foRmicula666";
 WiFiClientSecure net;
 #else
 #include <WiFi.h>
-static const char *mqtt_server = "pottendo-pi30-phono";
+//static const char *mqtt_server = "pottendo-pi30-phono";
+static const char *mqtt_server = "fcce";
 static int mqtt_port = 1883;
 static const char *clientID = "fcc";
 WiFiClient net;
@@ -162,7 +164,8 @@ void mqtt_publish(String topic, String msg)
 void setup_mqtt(uiElements *u)
 {
     ui = u;
-    client.begin(mqtt_server, mqtt_port, net);
+    IPAddress sv = MDNS.queryHost(mqtt_server);
+    client.begin(sv, mqtt_port, net);
     client.onMessage(callback);
     delay(50);
 }
