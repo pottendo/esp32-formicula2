@@ -203,7 +203,7 @@ void uiElements::update()
     {
         fcc_wd = millis();
         unsigned long upt = fcc_wd / 1000;
-        snprintf(buf, 64, "fcc/uptime %02ldh:%02ldm:%02lds, mem = %d",
+        snprintf(buf, 64, "fcc/ut %02ldh:%02ldm:%02lds, fm=%d",
                  upt / 3600,
                  (upt % 3600) / 60,
                  (upt % 60),
@@ -345,7 +345,7 @@ void uiElements::update_config(String s)
         time(&last_fcce_tick);
         return;
     }
-    if (s.startsWith("/uptime"))
+    if (s.startsWith("fcce/ut"))
     {
         time(&last_fcce_tick);
         log_msg(String("fcce: ") + s);
