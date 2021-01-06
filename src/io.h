@@ -433,7 +433,7 @@ public:
     void update_data(float v)
     {
         add_data(v);
-        log_msg("Remote Sensor " + get_name() + " updated to " + String(get_data()));
+        //log_msg("Remote Sensor " + get_name() + " updated to " + String(get_data()));
         std::for_each(parents.begin(), parents.end(),
                       [&](avgSensor *p) {
                           p->add_data(v);

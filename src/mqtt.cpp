@@ -18,13 +18,16 @@ WiFiClientSecure net;
 #else
 #include <WiFi.h>
 //static const char *mqtt_server = "pottendo-pi30-phono";
+static const char *mqtt_logger = "pottendo-pi30-phono";
 static const char *mqtt_server = "fcce";
 static int mqtt_port = 1883;
+static int mqtt_logger_port = 1883;
 static const char *clientID = "fcc";
 WiFiClient net;
 #endif
 
 static MQTTClient client;
+static MQTTClient *log_client = nullptr;
 
 static uiElements *ui;
 static std::list<genSensor *> remote_sensors;
@@ -42,6 +45,21 @@ void mqtt_register_circuit(genCircuit *s)
     circuits.push_back(s);
 }
 
+MQTTClient *mqtt_register_logger(void)
+{
+    static WiFiClient wc;
+    IPAddress sv = MDNS.queryHost(mqtt_logger);
+    if (sv == INADDR_NONE)
+    {
+        log_msg(String("mqtt logger '") + mqtt_logger + "' not found.");
+        return nullptr;
+    }
+    log_client = new MQTTClient;
+    log_client->begin(sv, mqtt_logger_port, wc);
+    log_msg(String("mqtt logger '") + mqtt_logger + "'attached.");
+    return log_client;
+}
+
 void callback(String &t, String &payload)
 {
     String topic = t.substring(t.indexOf('/'));
@@ -56,10 +74,10 @@ void callback(String &t, String &payload)
     if (payload.startsWith("<ERR>"))
     {
         ui->ui_P();
-        ui->log_event(topic.c_str());
-        ui->log_event(payload.c_str());
+        ui->log_event((topic + payload).c_str(), myLogger::LOG_SENSOR);
+        //ui->log_event(payload.c_str(), myLogger::LOG_SENSOR);
         ui->ui_V();
-        log_msg(topic + payload);
+        //log_msg(topic + payload);
         fcce_alive = true;
         goto out;
     }
@@ -112,8 +130,8 @@ void reconnect()
             connection_wd = millis();
         last = millis();
         reconnects++;
-        log_msg("fcc not connected, attempting MQTT connection..." + String(reconnects));
-        ui->log_event("MQTT not connected, retrying...");
+        //log_msg("fcc not connected, attempting MQTT connection..." + String(reconnects));
+        ui->log_event(("mqtt connecting..." + String(reconnects)).c_str());
 
         // Attempt to connect
 #ifdef EXTMQTT
@@ -149,21 +167,30 @@ bool mqtt_reset(void)
     return true;
 }
 
-void mqtt_publish(String topic, String msg)
+static SemaphoreHandle_t mqtt_mutex;
+
+void mqtt_publish(String topic, String msg, MQTTClient *c)
 {
     if (!client.connected() &&
         (mqtt_reset() == false))
     {
-        log_msg("mqtt client not connected...");
+        log_msg("mqtt not connected, discarding " + topic + ":" + msg);
         return;
     }
     //log_msg("fcc publish: " + topic + " - " + msg);
-    client.publish((clientID + topic).c_str(), msg.c_str());
+    P(mqtt_mutex);
+    if (c)
+        c->publish((clientID + topic).c_str(), msg.c_str());
+    else
+        client.publish((clientID + topic).c_str(), msg.c_str());
+    V(mqtt_mutex);
 }
 
 void setup_mqtt(uiElements *u)
 {
     ui = u;
+    mqtt_mutex = xSemaphoreCreateMutex();
+    V(mqtt_mutex);
     IPAddress sv = MDNS.queryHost(mqtt_server);
     client.begin(sv, mqtt_port, net);
     client.onMessage(callback);
@@ -177,4 +204,6 @@ void loop_mqtt()
         reconnect();
     }
     client.loop();
+    if (log_client)
+        log_client->loop();
 }

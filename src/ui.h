@@ -23,6 +23,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <WString.h>
+#include <PageBuilder.h>
+
+#include "logger.h"
 
 #define MUT_EXCL
 #ifdef MUT_EXCL
@@ -47,10 +50,7 @@ class uiScreensaver;
 class genSensor;
 
 /* prototypes */
-void init_lvgl(void);
 uiElements *setup_ui(const int to);
-void log_msg(const char *s);
-void log_msg(const String s);
 extern lv_obj_t *log_handle;
 extern myRange<float> ctrl_temprange;
 extern myRange<float> ctrl_humrange;
@@ -58,18 +58,17 @@ extern myRange<struct tm> def_day;
 
 extern int glob_delay;
 
-void setup_wifi(void);
+void setup_wifi(uiElements *ui);
 void loop_wifi(void);
 void setup_mqtt(uiElements *ui);
 void loop_mqtt(void);
 void mqtt_register_sensor(genSensor *s);
 void mqtt_register_circuit(genCircuit *s);
-void mqtt_publish(String topic, String msg);
+MQTTClient *mqtt_register_logger(void);
+void mqtt_publish(String topic, String msg, MQTTClient *c = nullptr);
 
-//#include <WebServer.h>
-//void setup_OTA(WebServer *s);
-//void setup_OTA(void);
-//void loop_OTA(void);
+/* web pages */
+void setup_web(WebServer &server, uiElements *ui);
 
 template <typename T>
 class myRange; // forward declaration
@@ -137,6 +136,7 @@ class uiElements
     time_t last_fcce_tick;
     analogMeter *avg_temp_berg, *avg_temp_erde, *avg_hum_berg, *avg_hum_erde;
     genSensor *sens_temp_berg, *sens_temp_erde, *sens_hum_berg, *sens_hum_erde;
+    String fcce_ut, fcc_ut;
 
 public:
     uiElements(int idle_time);
@@ -193,7 +193,7 @@ public:
     void update_sensor(genSensor *s);
     void update_config(String s);
     void set_switch(String s);
-    void log_event(const char *s);
+    void log_event(const char *s, myLogger::myLog_t w = myLogger::LOG_MSG);
     void reset_eventlog(void);
     void set_avg_sensors(genSensor *t1, genSensor *t2, genSensor *h1, genSensor *h2)
     {
@@ -201,6 +201,8 @@ public:
         sens_hum_berg = h1, sens_hum_erde = h2;
     }
     bool is_critical(void);
+    String get_fcc_ut(void) { String r; P(ui_master_lock); r = fcc_ut; V(ui_master_lock); return r; }
+    String get_fcce_ut(void) { String r; P(ui_master_lock); r = fcce_ut; V(ui_master_lock); return r; }
 };
 
 class uiCommons

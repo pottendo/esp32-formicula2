@@ -22,6 +22,7 @@
 #include <AutoConnectOTA.h>
 #include <AutoConnect.h>
 #include <ESPmDNS.h>
+#include <PageBuilder.h>
 
 #include "ui.h"
 #include "wifi.h"
@@ -33,6 +34,7 @@ myTime *time_obj;
 static WebServer ip_server;
 static AutoConnect portal(ip_server);
 static AutoConnectConfig config;
+PageBuilder page;   // entry page
 #endif
 
 static const String hostname = "fcc";
@@ -52,10 +54,11 @@ void printLocalTime()
     int err = 10;
     while (!getLocalTime(&timeinfo) && err--)
     {
-        printf("Failed to obtain time - %d\n", 10 - err);
+        log_msg("Failed to obtain time - " + String(10 - err));
         delay(500);
     }
-    if (err <= 0) {
+    if (err <= 0)
+    {
         // tried for 10s to get time, better reboot and try again
         log_msg("failed to obtain time...rebooting.");
         ESP.restart();
@@ -64,6 +67,7 @@ void printLocalTime()
 }
 
 #ifdef USE_AC
+/*
 static void rootPage(void)
 {
     String body;
@@ -71,13 +75,14 @@ static void rootPage(void)
     const char *content = body.c_str();
     ip_server.send(200, "text/plain", content);
 }
+*/
 #endif
 
-void setup_wifi(void)
+void setup_wifi(uiElements *ui)
 {
     log_msg("Setting up Wifi...");
 #ifdef USE_AC
-    ip_server.on("/", rootPage);
+    //ip_server.on("/", rootPage);
     config.ota = AC_OTA_BUILTIN;
     config.hostName = hostname;
     portal.config(config);
@@ -85,6 +90,9 @@ void setup_wifi(void)
     {
         Serial.println("WiFi connected: " + WiFi.localIP().toString());
     }
+    // Prepare dynamic web page
+    setup_web(ip_server, ui);
+
 #else
     WiFi.begin("pottendoT", "poTtendosWLAN");
     while (!WiFi.isConnected())
@@ -94,10 +102,10 @@ void setup_wifi(void)
     }
 #endif
     log_msg("done.\nSetting up local time...");
-    printf("fcc IP = %s, GW = %s, DNS = %s\n",
-           WiFi.localIP().toString().c_str(),
-           WiFi.gatewayIP().toString().c_str(),
-           WiFi.dnsIP().toString().c_str());
+    log_msg("fcc IP = " + 
+        WiFi.localIP().toString() + ", GW = " + 
+           WiFi.gatewayIP().toString() + ", DNS = " + 
+           WiFi.dnsIP().toString());
     //WiFi.printDiag(Serial);
 
     //init and get the time

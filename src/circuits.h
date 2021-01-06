@@ -87,7 +87,7 @@ public:
     inline myRange<float> &get_range(bool day = true) override { return day ? range_day : range_night; }
     void io_set(uint8_t v, bool ign_invers = false, bool update_button = false) override
     {
-        log_msg("Circuit " + get_name() + " sets IO to " + String(v));
+        log_msg("Circuit " + get_name() + " sets IO to " + String(v), myLogger::LOG_CIRCUIT);
         io.set(v, ign_invers);
         if (update_button)
             button->set(io.state());
@@ -112,7 +112,7 @@ public:
             return; /* don't do anything in manual mode */
         struct tm t;
         //log_msg(circuit_name + " - update...");
-        log_msg(this->to_string());
+        //log_msg(this->to_string());
         if (!time_obj->get_time(&t))
         {
             ui->log_event((circuit_name + "Failed to obtain time").c_str());
@@ -125,7 +125,7 @@ public:
             /* we're on duty */
             if (sensor.get_type() == JUST_SWITCH)
             {
-                log_msg(circuit_name + range.to_string() + " switching on - " + String(io.state()));
+                log_msg(circuit_name + range.to_string() + " switching on - " + String(io.state()), myLogger::LOG_CIRCUIT);
                 io.set(HIGH, true); // force switching on
                 button->set(io.state());
                 set_fallback_mode(false);
@@ -134,7 +134,7 @@ public:
             float v1 = sensor.get_data();
             if (isnan(v1))
             {
-                ui->log_event(String(get_name() + ": sens fail-fallback mode.").c_str());
+                ui->log_event(String(get_name() + ": sens fail-fallback mode.").c_str(), myLogger::LOG_CIRCUIT);
                 set_fallback_mode(true);
                 return;
             }
@@ -145,7 +145,7 @@ public:
             if (range.is_in(v1))
             {
                 log_msg(circuit_name + ": " + (def_day.is_in(t) ? "day" : "night") +
-                        range.to_string() + ": val=" + String(v1) + "...nothing to do.");
+                        range.to_string() + ": val=" + String(v1) + "...nothing to do.", myLogger::LOG_CIRCUIT);
                 //                io.toggle();
                 button->set(io.state());
                 return;
@@ -154,14 +154,14 @@ public:
             {
                 io.set(HIGH);
                 log_msg(circuit_name + ": " + (def_day.is_in(t) ? "day" : "night") +
-                        range.to_string() + ": val=" + String(v1) + "...switching " + io.to_string());
+                        range.to_string() + ": val=" + String(v1) + "...switching " + io.to_string(), myLogger::LOG_CIRCUIT);
                 button->set(io.state());
             }
             if (range.is_above(v1))
             {
                 io.set(LOW);
                 log_msg(circuit_name + ": " + (def_day.is_in(t) ? "day" : "night") +
-                        range.to_string() + ": val=" + String(v1) + "...switching " + io.to_string());
+                        range.to_string() + ": val=" + String(v1) + "...switching " + io.to_string(), myLogger::LOG_CIRCUIT);
                 button->set(io.state());
             }
         }
@@ -169,7 +169,7 @@ public:
         {
             io_set(LOW, true); // force off if circuit is not on duty
             button->set(io.state());
-            log_msg(circuit_name + " - not on duty, switching off");
+            log_msg(circuit_name + " - not on duty, switching off", myLogger::LOG_CIRCUIT);
         }
     }
 

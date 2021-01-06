@@ -166,7 +166,8 @@ void uiElements::update()
     static char buf[64];
     static bool ip_initialized = false;
     saver.update();
-
+    //log_publish();  /* doesn't work reliably */
+    
     // update update URL widget only once.
     if (!ip_initialized)
     {
@@ -209,7 +210,7 @@ void uiElements::update()
                  (upt % 60),
                  ESP.getFreeHeap());
         lv_label_set_text(load_widget, buf);
-
+        fcc_ut = String(buf);
         mqtt_publish("/cc-alive", buf);
     }
 };
@@ -348,7 +349,8 @@ void uiElements::update_config(String s)
     if (s.startsWith("fcce/ut"))
     {
         time(&last_fcce_tick);
-        log_msg(String("fcce: ") + s);
+        //log_msg(String("fcce: ") + s);
+        fcce_ut = s;
         lv_label_set_text(fcce_widget_uptime, s.c_str());
         return;
     }
@@ -360,7 +362,7 @@ void uiElements::set_switch(String s)
     log_msg("Setting switch via mqtt: " + s);
 }
 
-void uiElements::log_event(const char *s)
+void uiElements::log_event(const char *s, myLogger::myLog_t w)
 {
     static int count = 0;
     uint32_t pos;
@@ -368,7 +370,7 @@ void uiElements::log_event(const char *s)
     snprintf(buf, 12, "\n%03d:", count++);
     lv_textarea_add_text(event_log, buf);
     lv_textarea_add_text(event_log, s);
-    log_msg(buf);
+    log_msg(s, w);
     pos = lv_textarea_get_cursor_pos(event_log);
     if (pos > 500)
     {

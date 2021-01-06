@@ -22,28 +22,9 @@
 #include "ui.h"
 #include "circuits.h"
 
-TFT_eSPI tft = TFT_eSPI(); /* TFT instance */
-lv_disp_buf_t disp_buf;
-lv_color_t buf[LV_HOR_RES_MAX * 10];
-lv_obj_t *log_handle;
-
-/* helpers */
-void log_msg(const char *s)
-{
-#if 0
-	P(ui_mutex);
-	lv_textarea_add_text(log_handle, s);
-	lv_textarea_add_char(log_handle, '\n');
-	V(ui_mutex);
-#endif
-	printf("%s\n", s);
-	fflush(stdout);
-}
-
-void log_msg(String s)
-{
-	log_msg(s.c_str());
-}
+static TFT_eSPI tft = TFT_eSPI(); /* TFT instance */
+static lv_disp_buf_t disp_buf;
+static lv_color_t buf[LV_HOR_RES_MAX * 10];
 
 /* Display flushing */
 static void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area,
@@ -100,7 +81,7 @@ static bool my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data
 	return false; /*Return `false` because we are not buffering and no more data to read*/
 }
 
-void init_lvgl(void)
+static void init_lvgl(void)
 {
 	pinMode(TFT_LED, OUTPUT);
 	digitalWrite(TFT_LED, LOW); // Display-Beleuchtung einschalten
@@ -138,14 +119,8 @@ void init_lvgl(void)
 
 uiElements *setup_ui(const int ui_ss_timeout)
 {
+	init_lvgl();
 	uiElements *ui = new uiElements(ui_ss_timeout);
- #if 0
-	/* tab N logs */
-	log_handle = lv_textarea_create(tab2, NULL);
-	lv_obj_set_size(log_handle, 200, 200);
-	lv_obj_align(log_handle, NULL, LV_ALIGN_CENTER, 0, 0);
-	lv_textarea_set_text(log_handle, "Log started...\n");
-#endif
 	log_msg("GUI Setup finished.");
 	return ui;
 }

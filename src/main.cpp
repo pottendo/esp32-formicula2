@@ -61,13 +61,13 @@ static uiElements *ui;
 void setup()
 {
     Serial.begin(115200);
-    Serial.printf("Formicula control(AC OTA) - V1.1\n");
+    Serial.printf("Formicula Control Centre (AC OTA) - V1.1\n");
 
-    init_lvgl();
     ui = setup_ui(ui_ss_timeout);
     //setup_io();
-    setup_wifi();
+    setup_wifi(ui);
     setup_mqtt(ui);
+    setup_logger();
 
     tswitch = new timeSwitch(ui, "Tag/Nacht");
     io_tswitch = new ioDigitalIO(27);
