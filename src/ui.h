@@ -65,6 +65,7 @@ void loop_mqtt(void);
 void mqtt_register_sensor(genSensor *s);
 void mqtt_register_circuit(genCircuit *s);
 MQTTClient *mqtt_register_logger(void);
+bool mqtt_connect(MQTTClient *c);
 void mqtt_publish(String topic, String msg, MQTTClient *c = nullptr);
 
 /* web pages */

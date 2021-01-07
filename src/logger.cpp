@@ -19,12 +19,11 @@
 #include "logger.h"
 #include "ui.h"
 
-static myLogger msg_logger("fcc/msg", 50, 90 * 1000);
-static myLogger sensor_logger("fcc/sensors", 50);
-static myLogger circuit_logger("fcc/circuits", 50);
+static myLogger msg_logger("/msg", 50, 90 * 1000);
+static myLogger sensor_logger("/sensors", 50);
+static myLogger circuit_logger("/circuits", 50);
 
 #if 0
-static MQTTClient *log_mqtt_client;
 void logger_task(void *arg)
 {
     log_msg("logger task started...");
@@ -35,9 +34,12 @@ void logger_task(void *arg)
     }
 }
 #endif
+
+#define PUBLISH_LOG
+static MQTTClient *log_mqtt_client;
 void setup_logger(void)
 {
-#if 0
+#ifdef PUBLISH_LOG
     log_mqtt_client = mqtt_register_logger();
     if (!log_mqtt_client)
         return;
@@ -46,14 +48,14 @@ void setup_logger(void)
     //xTaskCreate(logger_task, "logger_task", 4000, NULL, configMAX_PRIORITIES - 1, &handle);
 }
 
-#if 0
+#ifdef PUBLISH_LOG
 void log_publish(void)
 {
     msg_logger.publish(log_mqtt_client);
 }
 #endif
 /* helpers */
-void log_msg(String s, myLogger::myLog_t where)
+void log_msg(String s, myLogger::myLog_t where, bool publish)
 {
     printf("%s\n", s.c_str());
     fflush(stdout);
@@ -73,10 +75,10 @@ void log_msg(String s, myLogger::myLog_t where)
     default:
         return;
     }
-    l->log(s);
+    l->log(s, publish);
 }
 
-void log_msg(const char *s, myLogger::myLog_t where)
+void log_msg(const char *s, myLogger::myLog_t where, bool publish)
 {
 #if 0
 	P(ui_mutex);
@@ -84,25 +86,32 @@ void log_msg(const char *s, myLogger::myLog_t where)
 	lv_textarea_add_char(log_handle, '\n');
 	V(ui_mutex);
 #endif
-    log_msg(String(s), where);
+    log_msg(String(s), where, publish);
 }
 
 myLogger::myLogger(String n, size_t max, unsigned long p)
-    : name(n), max(max), len(0), last_cycle(millis()), period(p), last_published(0)
+    : name(n), max(max), len(0), last_cycle(millis()), period(p), nr(1)
 {
     mutex = xSemaphoreCreateMutex();
     V(mutex);
 }
 
-void myLogger::log(String m)
+void myLogger::log(String m, bool publish)
 {
+    if (publish && log_mqtt_client)
+    {
+        log_entry_t e{0, time(nullptr), m};
+        mqtt_publish("/msg", entry2String(e, false), log_mqtt_client);
+        return;
+    }
+
     P(mutex);
     if (len++ >= max)
     {
         len = max;
         msgs.erase(msgs.begin());
     }
-    msgs.push_back(log_entry_t{time(nullptr), m});
+    msgs.push_back(log_entry_t{nr++, time(nullptr), m});
     V(mutex);
 }
 
@@ -154,32 +163,33 @@ void myLogger::publish(MQTTClient *c)
         return;
     if ((millis() - last_cycle) < period)
         return;
-    if (!(c->connected()) &&
-        !(c->connect("fcc")))
-    {
-        log_msg("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXmqtt logger couldn't connect to mqtt broker, giving up");
+
+    if (!mqtt_connect(c))
         return;
-    }
     last_cycle = millis();
 
     P(mutex);
     std::list<log_entry_t> tmp = msgs;
     V(mutex);
-    int siz = tmp.size();
-    int i = 0;
+    static unsigned long last_published = 0;
+
+    //int siz = tmp.size();
+    //int i = 0;
     for (auto t = tmp.begin(); t != tmp.end(); t++)
     {
-        time_t msgt = (*t).first;
-        if (msgt >= last_published)
+        time_t msgt = std::get<0>(*t);
+        if (msgt > last_published)
         {
+#if 0            
             char buf[256];
             snprintf(buf, 256, "%d/%d - %s", i, siz, entry2String(*t, false).c_str());
             printf("XXXXXXXXXXXXXXXSending: %s\n", buf);
             c->publish(name.c_str(), buf /* entry2String(*t)*/, true, 2);
-            //mqtt_publish(name.c_str(), buf /* entry2String(*t)*/, c);
+#endif
+            mqtt_publish(name.c_str(), entry2String(*t, false), c);
             last_published = msgt;
             delay(250);
-            i++;
+            //i++;
         }
     }
 }
@@ -188,7 +198,7 @@ void myLogger::publish(MQTTClient *c)
 String myLogger::entry2String(log_entry_t &t, bool ashtml)
 {
     String ret{""};
-    char *str = ctime(&(t.first));
+    char *str = ctime(&(std::get<1>(t)));
     char *nl = strchr(str, '\n');
     if (nl)
         *nl = '\0';
@@ -198,14 +208,14 @@ String myLogger::entry2String(log_entry_t &t, bool ashtml)
         ret += str;
         ret += "</td>";
         ret += "<td>";
-        ret += t.second;
+        ret += std::get<2>(t);
         ret += "</td>";
     }
     else
     {
         ret += str;
         ret += ": ";
-        ret += t.second;
+        ret += std::get<2>(t);
     }
     return ret;
 }

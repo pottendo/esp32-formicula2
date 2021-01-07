@@ -27,20 +27,20 @@
 
 class myLogger
 {
-    typedef std::pair<time_t, String> log_entry_t;
+    typedef std::tuple<unsigned long, time_t, String> log_entry_t;
     std::list<log_entry_t> msgs;
     String name;        /* used as topic prefix on mqtt */
     size_t max, len;
     SemaphoreHandle_t mutex;
     unsigned long last_cycle, period;
-    unsigned long last_published;
+    unsigned long nr;
 
     String entry2String(log_entry_t &e, bool asthml = true);
 public:
     myLogger(String name, size_t len = 100, unsigned long period = 5 * 60 * 1000);
     ~myLogger() = default;
 
-    void log(String m);
+    void log(String m, bool publish = false);
     String to_string(bool ashtml = true);
 
     void publish(MQTTClient *client);
@@ -54,8 +54,8 @@ public:
     } myLog_t;
 };
 
-void log_msg(const char *s, myLogger::myLog_t where = myLogger::LOG_MSG);
-void log_msg(const String s, myLogger::myLog_t where = myLogger::LOG_MSG);
+void log_msg(const char *s, myLogger::myLog_t where = myLogger::LOG_MSG, bool publish = false);
+void log_msg(const String s, myLogger::myLog_t where = myLogger::LOG_MSG, bool publish = false);
 String get_log(myLogger::myLog_t w, bool ashtml = true);
 void setup_logger(void);
 void log_publish(void);

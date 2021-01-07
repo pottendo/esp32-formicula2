@@ -60,10 +60,13 @@ void printLocalTime()
     if (err <= 0)
     {
         // tried for 10s to get time, better reboot and try again
-        log_msg("failed to obtain time...rebooting.");
+        log_msg("failed to obtain time...rebooting.", myLogger::LOG_MSG, true);
+        delay(250);
         ESP.restart();
     }
-    Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
+    char buf[64];
+    strftime(buf, 64, "local time: %a, %b %d %Y %H:%M:%S", &timeinfo);
+    log_msg(buf);
 }
 
 #ifdef USE_AC
@@ -101,7 +104,6 @@ void setup_wifi(uiElements *ui)
         delay(500);
     }
 #endif
-    log_msg("done.\nSetting up local time...");
     log_msg("fcc IP = " + 
         WiFi.localIP().toString() + ", GW = " + 
            WiFi.gatewayIP().toString() + ", DNS = " + 
@@ -109,8 +111,10 @@ void setup_wifi(uiElements *ui)
     //WiFi.printDiag(Serial);
 
     //init and get the time
+    log_msg("Setting up local time...");
     time_obj = new myTime();
 
+    log_msg("Setting hostname to '" + hostname + "'");
     if (!MDNS.begin(hostname.c_str()))
     {
         log_msg("Setup of DNS for fcc failed.");

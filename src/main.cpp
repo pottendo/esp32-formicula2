@@ -144,15 +144,15 @@ void setup()
     circuit_fan =
         new myCircuit<genSensor>(ui, "Luefter", *berg_hum, *io_fan,
                                  5,
-                                 myRange<float>{64.0, 65.0},
-                                 myRange<float>{64.0, 65.0},
+                                 myRange<float>{62.0, 72.0},
+                                 myRange<float>{62.0, 72.0},
                                  ctrl_humrange); // inverse logic for fan as hum drops
 
     circuit_dhum =
-        new myCircuit<genSensor>(ui, "Feuchtigkeit", *berg_hum, *io_fog,
+        new myCircuit<genSensor>(ui, "Nebler", *berg_hum, *io_fog,
                                  5,
-                                 myRange<float>{60.0, 65.0},
-                                 myRange<float>{60.0, 65.0},
+                                 myRange<float>{58.0, 68.0},
+                                 myRange<float>{58.0, 68.0},
                                  ctrl_humrange);
 
 #if 0

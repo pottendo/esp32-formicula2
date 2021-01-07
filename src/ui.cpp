@@ -118,7 +118,8 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
            0, 5);
 
     add2ui(UI_SETTINGS, (new actionButton(this, UI_SETTINGS, "Reset FCC", [](uiCommons *p) {
-                            p->get_ui()->log_event("reset fcc requested by user... rebooting.");
+                            log_msg("reset fcc requested by user... rebooting.", myLogger::LOG_MSG, true);
+                            delay(250);
                             ESP.restart();
                         }))->get_area(),
            0, 5);
@@ -166,7 +167,7 @@ void uiElements::update()
     static char buf[64];
     static bool ip_initialized = false;
     saver.update();
-    //log_publish();  /* doesn't work reliably */
+    log_publish();  /* doesn't work reliably */
     
     // update update URL widget only once.
     if (!ip_initialized)
@@ -662,7 +663,7 @@ void uiScreensaver::update()
         return;
     }
 
-    if (ui->is_critical())
+    if (0 && ui->is_critical())
     {
         //int t = digitalRead(TFT_LED);
         //digitalWrite(TFT_LED, (t == HIGH) ? LOW : HIGH);

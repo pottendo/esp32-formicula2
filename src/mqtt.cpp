@@ -2,13 +2,14 @@
 #include <MQTT.h>
 #include <list>
 #include <ESPmDNS.h>
+#include <WiFiClientSecure.h>
+
 #include "ui.h"
 #include "circuits.h"
 
 // myqtthub credentials
 //#define EXTMQTT
 #ifdef EXTMQTT
-#include <WiFiClientSecure.h>
 static const char *mqtt_server = "node02.myqtthub.com";
 static int mqtt_port = 8883;
 static const char *clientID = "fcc";
@@ -18,11 +19,19 @@ WiFiClientSecure net;
 #else
 #include <WiFi.h>
 //static const char *mqtt_server = "pottendo-pi30-phono";
-static const char *mqtt_logger = "pottendo-pi30-phono";
 static const char *mqtt_server = "fcce";
 static int mqtt_port = 1883;
-static int mqtt_logger_port = 1883;
 static const char *clientID = "fcc";
+#ifdef LOCAL_LOGGER
+static const char *mqtt_logger_server = "pottendo-pi30-phono";
+static int mqtt_logger_port = 1883;
+#else
+static const char *mqtt_logger_server = "node02.myqtthub.com";
+static int mqtt_logger_port = 8883;
+#endif
+static const char *mqtt_log_user = "fcc-user";
+static const char *mqtt_log_pw = "foRmicula666";
+
 WiFiClient net;
 #endif
 
@@ -47,17 +56,33 @@ void mqtt_register_circuit(genCircuit *s)
 
 MQTTClient *mqtt_register_logger(void)
 {
+#ifdef LOCAL_LOGGER    
     static WiFiClient wc;
-    IPAddress sv = MDNS.queryHost(mqtt_logger);
+    IPAddress sv = MDNS.queryHost(mqtt_logger_server);
     if (sv == INADDR_NONE)
     {
         log_msg(String("mqtt logger '") + mqtt_logger + "' not found.");
         return nullptr;
     }
-    log_client = new MQTTClient;
+#else
+    static WiFiClientSecure wc;
+    const char *sv = mqtt_logger_server;
+#endif
+    log_client = new MQTTClient(256);
     log_client->begin(sv, mqtt_logger_port, wc);
-    log_msg(String("mqtt logger '") + mqtt_logger + "'attached.");
+    log_msg(String("mqtt logger '") + mqtt_logger_server + "'attached.");
     return log_client;
+}
+
+bool mqtt_connect(MQTTClient *c)
+{
+    if (!(c->connected()) &&
+        !(c->connect(clientID, mqtt_log_user, mqtt_log_pw)))
+    {
+        log_msg("mqtt logger couldn't connect to mqtt broker, giving up, rc = " + String(c->lastError()));
+        return false;
+    }
+    return true;
 }
 
 void callback(String &t, String &payload)
@@ -153,7 +178,8 @@ void reconnect()
             log_msg(String("Connection lost for: ") + String(t1) + "s...");
             if (t1 > 300)
             {
-                log_msg("mqtt reconnections failed for 5min... rebooting");
+                log_msg("mqtt reconnections failed for 5min... rebooting", myLogger::LOG_MSG, true);
+                delay(250);
                 ESP.restart();
             }
             log_msg("mqtt connect failed, rc=" + String(client.lastError()) + "... retrying.");
