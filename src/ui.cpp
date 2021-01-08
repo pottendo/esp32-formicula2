@@ -663,7 +663,7 @@ void uiScreensaver::update()
         return;
     }
 
-    if (0 && ui->is_critical())
+    if (ui->is_critical())
     {
         //int t = digitalRead(TFT_LED);
         //digitalWrite(TFT_LED, (t == HIGH) ? LOW : HIGH);
