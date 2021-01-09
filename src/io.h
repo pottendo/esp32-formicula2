@@ -29,6 +29,7 @@
 #include <list>
 #include <array>
 #include "ui.h"
+#include "mqtt.h"
 
 void setup_io(void);
 

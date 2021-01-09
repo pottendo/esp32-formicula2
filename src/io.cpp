@@ -19,6 +19,7 @@
 #include <list>
 #include "ui.h"
 #include "io.h"
+#include "mqtt.h"
 
 void setup_io(void)
 {

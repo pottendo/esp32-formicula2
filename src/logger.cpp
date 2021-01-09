@@ -18,10 +18,11 @@
 
 #include "logger.h"
 #include "ui.h"
+#include "mqtt.h"
 
-static myLogger msg_logger("/msg", 50, 90 * 1000);
-static myLogger sensor_logger("/sensors", 50);
-static myLogger circuit_logger("/circuits", 50);
+static myLogger msg_logger("/msg-log", 50, 10 * 1000);
+static myLogger sensor_logger("/sensors-log", 50);
+static myLogger circuit_logger("/circuits-log", 50);
 
 #if 0
 void logger_task(void *arg)
@@ -36,7 +37,7 @@ void logger_task(void *arg)
 #endif
 
 #define PUBLISH_LOG
-static MQTTClient *log_mqtt_client;
+static myMqtt *log_mqtt_client;
 void setup_logger(void)
 {
 #ifdef PUBLISH_LOG
@@ -157,15 +158,13 @@ String myLogger::to_string(bool ashtml)
 }
 
 /* should be called within a task context, as it delays to not flood mqtt over the net too quickly */
-void myLogger::publish(MQTTClient *c)
+void myLogger::publish(myMqtt *c)
 {
     if (!c)
         return;
     if ((millis() - last_cycle) < period)
         return;
 
-    if (!mqtt_connect(c))
-        return;
     last_cycle = millis();
 
     P(mutex);
@@ -173,8 +172,8 @@ void myLogger::publish(MQTTClient *c)
     V(mutex);
     static unsigned long last_published = 0;
 
-    //int siz = tmp.size();
-    //int i = 0;
+ //   int siz = tmp.size();
+ //   int i = 0;
     for (auto t = tmp.begin(); t != tmp.end(); t++)
     {
         time_t msgt = std::get<0>(*t);
@@ -184,7 +183,6 @@ void myLogger::publish(MQTTClient *c)
             char buf[256];
             snprintf(buf, 256, "%d/%d - %s", i, siz, entry2String(*t, false).c_str());
             printf("XXXXXXXXXXXXXXXSending: %s\n", buf);
-            c->publish(name.c_str(), buf /* entry2String(*t)*/, true, 2);
 #endif
             mqtt_publish(name.c_str(), entry2String(*t, false), c);
             last_published = msgt;

@@ -60,13 +60,6 @@ extern int glob_delay;
 
 void setup_wifi(uiElements *ui);
 void loop_wifi(void);
-void setup_mqtt(uiElements *ui);
-void loop_mqtt(void);
-void mqtt_register_sensor(genSensor *s);
-void mqtt_register_circuit(genCircuit *s);
-MQTTClient *mqtt_register_logger(void);
-bool mqtt_connect(MQTTClient *c);
-void mqtt_publish(String topic, String msg, MQTTClient *c = nullptr);
 
 /* web pages */
 void setup_web(WebServer &server, uiElements *ui);
@@ -134,6 +127,7 @@ class uiElements
     SemaphoreHandle_t ui_master_lock;
     bool do_sound = false;
     bool do_manual = false;
+    bool do_biohazard = true;
     time_t last_fcce_tick;
     analogMeter *avg_temp_berg, *avg_temp_erde, *avg_hum_berg, *avg_hum_erde;
     genSensor *sens_temp_berg, *sens_temp_erde, *sens_hum_berg, *sens_hum_erde;
@@ -154,6 +148,14 @@ public:
         bool b;
         P(mutex);
         b = do_manual;
+        V(mutex);
+        return b;
+    }
+    inline bool do_alarm(void)
+    {
+        bool b;
+        P(mutex);
+        b = do_biohazard;
         V(mutex);
         return b;
     }

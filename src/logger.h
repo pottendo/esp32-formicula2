@@ -25,6 +25,8 @@
 #include <list>
 #include <MQTT.h>
 
+class myMqtt;
+
 class myLogger
 {
     typedef std::tuple<unsigned long, time_t, String> log_entry_t;
@@ -43,7 +45,7 @@ public:
     void log(String m, bool publish = false);
     String to_string(bool ashtml = true);
 
-    void publish(MQTTClient *client);
+    void publish(myMqtt *client);
 
     typedef enum
     {

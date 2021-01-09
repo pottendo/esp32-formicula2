@@ -107,6 +107,7 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
     add2ui(UI_CFG1, (new rangeSpinbox<myRange<struct tm>>(this, UI_CFG1, "Tag", def_day, 230, 72))->get_area());
 
     /* settings */
+    add2ui(UI_SETTINGS, (new settingsButton(this, UI_SETTINGS, "BioHazard", do_biohazard, 230, 48))->get_area());
     add2ui(UI_SETTINGS, (new settingsButton(this, UI_SETTINGS, "Alarm Sound", do_sound, 230, 48))->get_area());
     add2ui(UI_SETTINGS, (new settingsButton(this, UI_SETTINGS, "Manuell", do_manual, 230, 48))->get_area());
 
@@ -167,8 +168,8 @@ void uiElements::update()
     static char buf[64];
     static bool ip_initialized = false;
     saver.update();
-    log_publish();  /* doesn't work reliably */
-    
+    log_publish(); /* doesn't work reliably */
+
     // update update URL widget only once.
     if (!ip_initialized)
     {
@@ -187,7 +188,10 @@ void uiElements::update()
     time(&now);
     long diff = now - last_fcce_tick;
     if (diff > 35)
+    {
         snprintf(buf, 64, "#ff0000 FCCE last seen %lds ago", diff);
+        set_mode(UI_WARNING);
+    }
     else
         snprintf(buf, 64, "FCCE last seen %lds ago", diff);
     lv_label_set_text(fcce_widget, buf);
@@ -539,6 +543,10 @@ settingsButton::settingsButton(uiElements *ui, ui_tabs_t t, const char *l, bool 
     lv_obj_align(obj, area, LV_ALIGN_IN_TOP_RIGHT, -10, h / 4);
     lv_obj_set_event_cb(obj, bsettings_cb_wrapper);
     bsettings_callbacks.store(obj, this);
+    if (v)
+        lv_switch_on(obj, true);
+    else
+        lv_switch_off(obj, true);
 
     label = lv_label_create(area, NULL);
     lv_label_set_text(label, label_text);
@@ -663,7 +671,7 @@ void uiScreensaver::update()
         return;
     }
 
-    if (ui->is_critical())
+    if (ui->do_alarm() && ui->is_critical())
     {
         //int t = digitalRead(TFT_LED);
         //digitalWrite(TFT_LED, (t == HIGH) ? LOW : HIGH);
