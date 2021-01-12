@@ -73,11 +73,14 @@ public:
 class myMqttLocal : public myMqtt
 {
     WiFiClient net;
+    char id_buf[16];
+    int nr = 0;
 public:
     myMqttLocal(const char *id, const char *server, upstream_fn up_fn = nullptr, const char *name = nullptr, int port = 1883);
     virtual ~myMqttLocal() = default;
 
     virtual bool connect(void) override;
+    char *get_id(void);
 };
 
 void setup_mqtt(uiElements *ui);

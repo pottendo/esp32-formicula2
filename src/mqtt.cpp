@@ -258,11 +258,16 @@ myMqttLocal::myMqttLocal(const char *id, const char *server, upstream_fn fn, con
     delay(50);
 }
 
+char *myMqttLocal::get_id(void)
+{
+    snprintf(id_buf, 16, "%s-%04d", id, nr++);
+    return id_buf;
+}
 bool myMqttLocal::connect(void)
 {
     P(mqtt_mutex);
     if (!client->connected() &&
-        !client->connect(id))
+        !client->connect(get_id(), "hugo", "schrammel"))
     {
         log_msg(String(name) + " mqtt connect failed, rc=" + String(client->lastError()));
         V(mqtt_mutex);
