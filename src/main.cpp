@@ -172,6 +172,9 @@ void setup()
 
     delay(25);
     ui->set_mode(UI_OPERATIONAL);
+    //vTaskPrioritySet(nullptr, configMAX_PRIORITIES - 6);
+
+    printf("my priority: %d\n", uxTaskPriorityGet(nullptr));
 }
 
 void loop()

@@ -27,6 +27,9 @@ static void fcce_upstream(String &t, String &payload);
 #define MQTT_LOG_USER "fcc-user"
 #define MQTT_LOG_PW "foRmicula666"
 
+/* doesn't work anyway, so commented out */
+//#define MQTT_MULTITHREADED
+
 void setup_mqtt(uiElements *u)
 {
     ui = u;
@@ -52,6 +55,16 @@ void mqtt_publish(String topic, String msg, myMqtt *c, int qos)
     P(mqtt_mutex); /* ensure mut-excl acces into MQTTClient library */
     myMqtt *client = (c ? c : fcce_connection);
     client->publish(topic, msg, qos);
+    V(mqtt_mutex);
+}
+
+void mqtt_P(void)
+{
+    P(mqtt_mutex);
+}
+
+void mqtt_V(void)
+{
     V(mqtt_mutex);
 }
 
@@ -97,6 +110,7 @@ void myMqtt::loop(void)
     V(mutex);
 }
 
+#ifdef MQTT_MULTITHREADED
 static void mqtt_connect_wrapper(void *arg)
 {
     myMqtt *p = static_cast<myMqtt *>(arg);
@@ -112,6 +126,7 @@ static void mqtt_connect_wrapper(void *arg)
         p->cleanup();
     }
 }
+#endif
 
 bool myMqtt::connected(void)
 {
@@ -125,6 +140,7 @@ bool myMqtt::connected(void)
 
 void myMqtt::reconnect(void)
 {
+#ifdef MQTT_MULTITHREADED
     //printf("reconnect requested...%p, connstat = %d, th = %p\n", this, conn_stat, th);
     P(mutex);
     if ((conn_stat != CONN) &&
@@ -136,10 +152,13 @@ void myMqtt::reconnect(void)
         xTaskCreate(mqtt_connect_wrapper, "mqtt-conn", 4000, this, prio /*configMAX_PRIORITIES - 1*/, &th);
     }
     V(mutex);
+#endif
+    reconnect_body();
 }
 
 void myMqtt::cleanup(void)
 {
+#ifdef MQTT_MULTITHREADED
     P(mutex);
     if (conn_stat == CONN && th)
     {
@@ -152,6 +171,7 @@ void myMqtt::cleanup(void)
     }
     V(mutex);
     printf("cleanup done.\n");
+#endif
 }
 
 void myMqtt::reconnect_body(void)
@@ -267,7 +287,7 @@ bool myMqttLocal::connect(void)
 {
     P(mqtt_mutex);
     if (!client->connected() &&
-        !client->connect(get_id(), "hugo", "schrammel"))
+        !client->connect(id, "hugo", "schrammel"))
     {
         log_msg(String(name) + " mqtt connect failed, rc=" + String(client->lastError()));
         V(mqtt_mutex);

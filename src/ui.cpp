@@ -110,6 +110,7 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
     add2ui(UI_SETTINGS, (new settingsButton(this, UI_SETTINGS, "BioHazard", do_biohazard, 230, 48))->get_area());
     add2ui(UI_SETTINGS, (new settingsButton(this, UI_SETTINGS, "Alarm Sound", do_sound, 230, 48))->get_area());
     add2ui(UI_SETTINGS, (new settingsButton(this, UI_SETTINGS, "Manuell", do_manual, 230, 48))->get_area());
+    add2ui(UI_SETTINGS, (new settingsButton(this, UI_SETTINGS, "Web Portal", do_portal, 230, 48))->get_area());
 
     /* some action buttons */
     add2ui(UI_SETTINGS, (new actionButton(this, UI_SETTINGS, "Reset FCCE", [](uiCommons *p) {
@@ -552,6 +553,8 @@ settingsButton::settingsButton(uiElements *ui, ui_tabs_t t, const char *l, bool 
     lv_label_set_text(label, label_text);
     lv_obj_align(label, area, LV_ALIGN_IN_TOP_LEFT, 10, h / 4);
     lv_obj_set_style_local_text_font(label, 0, LV_STATE_DEFAULT, &lv_font_montserrat_20);
+
+    log_msg("Setting '" + String(label_text) + "' set to " + String(state));
 }
 
 void settingsButton::cb(lv_event_t e)
@@ -559,6 +562,7 @@ void settingsButton::cb(lv_event_t e)
     if (e == LV_EVENT_VALUE_CHANGED)
     {
         state = lv_switch_get_state(obj);
+        log_msg("Setting '" + String(label_text) + "' set to " + String(state));
     }
 }
 

@@ -26,6 +26,7 @@
 
 #include "ui.h"
 #include "wifi.h"
+#include "mqtt.h"
 
 myTime *time_obj;
 
@@ -38,6 +39,7 @@ PageBuilder page;   // entry page
 #endif
 
 static const String hostname = "fcc";
+static uiElements *ui;
 
 myTime::myTime()
 {
@@ -81,9 +83,10 @@ static void rootPage(void)
 */
 #endif
 
-void setup_wifi(uiElements *ui)
+void setup_wifi(uiElements *u)
 {
     log_msg("Setting up Wifi...");
+    ui = u;
 #ifdef USE_AC
     //ip_server.on("/", rootPage);
     config.ota = AC_OTA_BUILTIN;
@@ -126,6 +129,11 @@ void loop_wifi(void)
     if (!WiFi.isConnected())
         log_msg("Wifi not connected ... strange");
 #ifdef USE_AC
-    portal.handleClient();
+    if (ui->portal())
+    {
+        mqtt_P();
+        portal.handleClient();
+        mqtt_V();
+    }
 #endif
 }

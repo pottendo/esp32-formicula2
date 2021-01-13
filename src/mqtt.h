@@ -90,5 +90,7 @@ void mqtt_register_circuit(genCircuit *s);
 myMqtt *mqtt_register_logger(void);
 bool mqtt_connect(MQTTClient *c);
 void mqtt_publish(String topic, String msg, myMqtt *c = nullptr, int qos = 0);
+void mqtt_P(void);
+void mqtt_V(void);
 
 #endif
