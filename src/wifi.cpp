@@ -100,7 +100,7 @@ void setup_wifi(uiElements *u)
     setup_web(ip_server, ui);
 
 #else
-    WiFi.begin("pottendoT", "poTtendosWLAN");
+    WiFi.begin("XXXX", "YYYY");
     while (!WiFi.isConnected())
     {
         log_msg("WiFi connection failed, retrying...");
