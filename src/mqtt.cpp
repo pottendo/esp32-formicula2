@@ -85,12 +85,16 @@ void mqtt_register_circuit(genCircuit *s)
 
 myMqtt *mqtt_register_logger(void)
 {
+#ifdef MQTT_LOG_LOCAL
+    return new myMqttLocal(client_id, MQTT_LOG, nullptr, "log broker", 1883, MQTT_LOG_USER, MQTT_LOG_PW);
+#else
     return new myMqttSec(client_id, MQTT_LOG, nullptr, "log broker", 8883, MQTT_LOG_USER, MQTT_LOG_PW);
+#endif
 }
 
 /* class myMqtt broker */
-myMqtt::myMqtt(const char *id, upstream_fn f, const char *n)
-    : id(id)
+myMqtt::myMqtt(const char *id, upstream_fn f, const char *n, const char *user, const char *pw)
+    : id(id), user(user), pw(pw)
 {
     mutex = xSemaphoreCreateMutex();
     name = (n ? n : id);
@@ -242,7 +246,7 @@ void myMqtt::register_callback(upstream_fn fn)
 }
 
 myMqttSec::myMqttSec(const char *id, const char *server, upstream_fn fn, const char *n, int port, const char *user, const char *pw)
-    : myMqtt(id, fn, n), user(user), pw(pw)
+    : myMqtt(id, fn, n, user, pw)
 {
     client = new MQTTClient{256};
     client->begin(server, port, net);
@@ -264,8 +268,8 @@ bool myMqttSec::connect(void)
     return true;
 }
 
-myMqttLocal::myMqttLocal(const char *id, const char *server, upstream_fn fn, const char *n, int port)
-    : myMqtt(id, fn, n)
+myMqttLocal::myMqttLocal(const char *id, const char *server, upstream_fn fn, const char *n, int port, const char *user, const char *pw)
+    : myMqtt(id, fn, n, user, pw)
 {
     client = new MQTTClient{256}; /* default msg size, 128 */
     IPAddress sv = MDNS.queryHost(server);

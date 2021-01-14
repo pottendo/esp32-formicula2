@@ -38,11 +38,13 @@ protected:
     MQTTClient *client;
     const char *id;
     const char *name;
+    const char *user;
+    const char *pw;
     typedef void (*upstream_fn)(String &topic, String &payload);
     upstream_fn up_fn;
 
 public:
-    myMqtt(const char *id, upstream_fn up_fn = nullptr, const char *name = nullptr);
+    myMqtt(const char *id, upstream_fn up_fn = nullptr, const char *name = nullptr, const char *user = "", const char *pw = "");
     virtual ~myMqtt() { delete client; };
 
     void set_conn_stat(conn_stat_t s) { P(mutex); conn_stat = s; V(mutex); }
@@ -60,8 +62,6 @@ public:
 class myMqttSec : public myMqtt
 {
     WiFiClientSecure net;
-    const char *user;
-    const char *pw;
 
 public:
     myMqttSec(const char *id, const char *server, upstream_fn up_fn = nullptr, const char *name = nullptr, int port = 8883, const char *user = "", const char *pw = "");
@@ -76,7 +76,7 @@ class myMqttLocal : public myMqtt
     char id_buf[16];
     int nr = 0;
 public:
-    myMqttLocal(const char *id, const char *server, upstream_fn up_fn = nullptr, const char *name = nullptr, int port = 1883);
+    myMqttLocal(const char *id, const char *server, upstream_fn up_fn = nullptr, const char *name = nullptr, int port = 1883, const char *user = "", const char *pw = "");
     virtual ~myMqttLocal() = default;
 
     virtual bool connect(void) override;
