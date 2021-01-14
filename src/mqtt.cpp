@@ -20,12 +20,15 @@ static const char *client_id = "fcc"; /* identify fcc uniquely on mqtt */
 
 static void fcce_upstream(String &t, String &payload);
 
-/* to be exported to a separate .h */
+/* embedded device name fcce.local on network*/
 #define MQTT_FCCE "fcce"
-//#define MQTT_LOG "node02.myqtthub.com"
-#define MQTT_LOG "pottendo-pi30-phono"
-#define MQTT_LOG_USER "fcc-user"
-#define MQTT_LOG_PW "foRmicula666"
+
+#include "mqtt-cred.h"
+#ifndef MQTT_CRED
+#define MQTT_LOG "mqtt-logger"
+#define MQTT_LOG_USER "mqtt-user"
+#define MQTT_LOG_PW "mqtt-pw"
+#endif
 
 /* doesn't work anyway, so commented out */
 //#define MQTT_MULTITHREADED
@@ -82,7 +85,7 @@ void mqtt_register_circuit(genCircuit *s)
 
 myMqtt *mqtt_register_logger(void)
 {
-    return new myMqttLocal(client_id, MQTT_LOG, nullptr, "log broker");
+    return new myMqttSec(client_id, MQTT_LOG, nullptr, "log broker", 8883, MQTT_LOG_USER, MQTT_LOG_PW);
 }
 
 /* class myMqtt broker */
