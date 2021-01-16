@@ -100,7 +100,7 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
     lv_textarea_set_scroll_propagation(event_log, true);
     lv_textarea_set_text(event_log, "Event Log\n");
     lv_textarea_set_cursor_hidden(event_log, true);
-    lv_textarea_set_sscrollbar_mode(event_log, LV_SCRLBAR_MODE_AUTO);
+    lv_textarea_set_scrollbar_mode(event_log, LV_SCRLBAR_MODE_AUTO);
     lv_obj_set_style_local_bg_color(event_log, LV_TEXTAREA_PART_BG, LV_STATE_DEFAULT, LV_COLOR_GRAY);
     add2ui(UI_CFG2, event_log);
 
