@@ -55,8 +55,8 @@ static bool my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data
 	{
 		data->state = LV_INDEV_STATE_PR;
 	}
-
-	if (touchX > screenWidth || touchY > screenHeight)
+		//if (touchX > screenWidth || touchY > screenHeight)
+	if (touchX > tft.width() || touchY > tft.height())
 	{
 		Serial.println("Y or y outside of expected parameters..");
 		Serial.print("y:");
@@ -93,7 +93,7 @@ static void init_lvgl(void)
 	uint16_t calData[5] = {365, 3383, 251, 3334, 2}; // for portrait
 	//uint16_t calData[5] = { 247, 3296, 294, 3429, 1 }; // for landscape
 	//tft.calibrateTouch(calData,TFT_MAGENTA, TFT_BLACK, 15);
-	printf("caldata: %d, %d, %d, %d, %d\n", calData[0], calData[1], calData[2], calData[3], calData[4]);
+	Serial.printf("caldata: %d, %d, %d, %d, %d\n", calData[0], calData[1], calData[2], calData[3], calData[4]);
 	tft.setTouch(calData);
 
 	lv_disp_buf_init(&disp_buf, buf, NULL, LV_HOR_RES_MAX * 10);

@@ -52,8 +52,10 @@ class genSensor;
 /* prototypes */
 uiElements *setup_ui(const int to);
 extern lv_obj_t *log_handle;
-extern myRange<float> ctrl_temprange;
-extern myRange<float> ctrl_humrange;
+extern myRange<float> ctrl_temprange1;
+extern myRange<float> ctrl_humrange1;
+extern myRange<float> ctrl_temprange2;
+extern myRange<float> ctrl_humrange2;
 extern myRange<struct tm> def_day;
 
 extern int glob_delay;
@@ -150,6 +152,10 @@ public:
         P(mutex);
         b = do_manual;
         V(mutex);
+        if (do_manual)
+            lv_disp_set_bg_color(nullptr, LV_COLOR_ORANGE);
+        else
+            lv_disp_set_bg_color(nullptr, LV_COLOR_WHITE);
         return b;
     }
     inline bool do_alarm(void)
@@ -213,8 +219,22 @@ public:
         sens_hum_berg = h1, sens_hum_erde = h2;
     }
     bool is_critical(void);
-    String get_fcc_ut(void) { String r; P(ui_master_lock); r = fcc_ut; V(ui_master_lock); return r; }
-    String get_fcce_ut(void) { String r; P(ui_master_lock); r = fcce_ut; V(ui_master_lock); return r; }
+    String get_fcc_ut(void)
+    {
+        String r;
+        P(ui_master_lock);
+        r = fcc_ut;
+        V(ui_master_lock);
+        return r;
+    }
+    String get_fcce_ut(void)
+    {
+        String r;
+        P(ui_master_lock);
+        r = fcce_ut;
+        V(ui_master_lock);
+        return r;
+    }
 };
 
 class uiCommons

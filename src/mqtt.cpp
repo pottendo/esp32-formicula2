@@ -273,7 +273,7 @@ myMqttLocal::myMqttLocal(const char *id, const char *server, upstream_fn fn, con
 {
     client = new MQTTClient{256}; /* default msg size, 128 */
     IPAddress sv = MDNS.queryHost(server);
-    if (sv == INADDR_NONE)
+    if (uint32_t(sv) == 0)
     {
         log_msg(String(name) + " mqtt broker '" + server + "' not found.");
         return; // XXX throw exception here

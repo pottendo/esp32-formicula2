@@ -23,9 +23,11 @@
 #include "circuits.h"
 
 /* some globals */
-myRange<float> ctrl_temprange{20.0, 30.0};
-myRange<float> ctrl_humrange{50.0, 99.99};
-myRange<struct tm> def_day{{0, 0, 7}, {0, 0, 19}};
+myRange<float> ctrl_temprange1{21.0, 31.0};
+myRange<float> ctrl_humrange1{60.0, 90.0};
+myRange<float> ctrl_temprange2{28.0, 35.0};
+myRange<float> ctrl_humrange2{60.0, 90.0};
+myRange<struct tm> def_day{{0, 0, 7}, {0, 0, 18}};
 const int ui_ss_timeout = 30; /* screensaver timeout in s */
 int glob_delay = 10;
 
@@ -83,9 +85,9 @@ void setup()
                                  5,
                                  myRange<float>{0.0, 0.0},
                                  myRange<float>{0.0, 0.0},
-                                 ctrl_temprange,
+                                 ctrl_temprange1,
                                  nullptr,
-                                 *(new myRange<struct tm>{{0, 0, 7}, {0, 0, 22}}));
+                                 *(new myRange<struct tm>{{0, 0, 9}, {0, 0, 16}}));
 
 #if 0
     dsls_1 = new myDS18B20(ui, "/Erde", 17, 5000);
@@ -120,15 +122,15 @@ void setup()
     circuit_infrared =
         new myCircuit<genSensor>(ui, "Infrarot", *berg_temp, *io_infrared,
                                  5,
-                                 myRange<float>{28.0, 29.0},
+                                 myRange<float>{27.0, 29.0},
                                  myRange<float>{24.0, 27.0},
-                                 ctrl_temprange);
+                                 ctrl_temprange1);
     circuit_heater =
         new myCircuit<genSensor>(ui, "Heizmatte", *erde_temp, *io_heater,
                                  5,
-                                 myRange<float>{27.0, 28.0},
-                                 myRange<float>{27.0, 28.0},
-                                 ctrl_temprange,
+                                 myRange<float>{30.0, 31.0},
+                                 myRange<float>{29.0, 30.0},
+                                 ctrl_temprange2,
                                  [](genCircuit *c) {
                                      static unsigned long last = 0;
                                      static uint8_t state = HIGH;
@@ -144,16 +146,16 @@ void setup()
     circuit_fan =
         new myCircuit<genSensor>(ui, "Luefter", *berg_hum, *io_fan,
                                  5,
-                                 myRange<float>{62.0, 72.0},
-                                 myRange<float>{62.0, 72.0},
-                                 ctrl_humrange); // inverse logic for fan as hum drops
+                                 myRange<float>{65.0, 75.0},
+                                 myRange<float>{70.0, 80.0},
+                                 ctrl_humrange1); // inverse logic for fan as hum drops
 
     circuit_dhum =
         new myCircuit<genSensor>(ui, "Nebler", *berg_hum, *io_fog,
                                  5,
-                                 myRange<float>{58.0, 68.0},
-                                 myRange<float>{58.0, 68.0},
-                                 ctrl_humrange);
+                                 myRange<float>{65.0, 75.0},
+                                 myRange<float>{70.0, 80.0},
+                                 ctrl_humrange1);
 
 #if 0
     circuit_fog =
@@ -174,7 +176,7 @@ void setup()
     ui->set_mode(UI_OPERATIONAL);
     //vTaskPrioritySet(nullptr, configMAX_PRIORITIES - 6);
 
-    printf("my priority: %d\n", uxTaskPriorityGet(nullptr));
+    printf("main priority: %d\n", uxTaskPriorityGet(nullptr));
 }
 
 void loop()

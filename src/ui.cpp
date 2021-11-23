@@ -63,19 +63,19 @@ uiElements::uiElements(int idle_time) : saver(this, idle_time), mwidget(nullptr)
     tabs[UI_SETTINGS] = lv_tabview_add_tab(tab_view, "Set");
 
     /* tab 1 - Status */
-    avg_temp_berg = new analogMeter(this, UI_STATUS, "Temperatur Berg", ctrl_temprange, "C");
+    avg_temp_berg = new analogMeter(this, UI_STATUS, "Temperatur Berg", ctrl_temprange1, "C");
     add2ui(UI_STATUS, avg_temp_berg->get_area());
     avg_temp_berg->set_val(27.0);
 
-    avg_temp_erde = new analogMeter(this, UI_STATUS, "Temperatur Erde", ctrl_temprange, "C");
+    avg_temp_erde = new analogMeter(this, UI_STATUS, "Temperatur Erde", ctrl_temprange2, "C");
     add2ui(UI_STATUS, avg_temp_erde->get_area());
     avg_temp_erde->set_val(27.0);
 
-    avg_hum_berg = new analogMeter(this, UI_STATUS, "Feuchtigkeit Berg", ctrl_humrange, "\%");
+    avg_hum_berg = new analogMeter(this, UI_STATUS, "Feuchtigkeit Berg", ctrl_humrange1, "\%");
     add2ui(UI_STATUS, avg_hum_berg->get_area());
     avg_hum_berg->set_val(65.0);
 
-    avg_hum_erde = new analogMeter(this, UI_STATUS, "Feuchtigkeit Erde", ctrl_humrange, "\%");
+    avg_hum_erde = new analogMeter(this, UI_STATUS, "Feuchtigkeit Erde", ctrl_humrange2, "\%");
     add2ui(UI_STATUS, avg_hum_erde->get_area());
     avg_hum_erde->set_val(65.0);
 
@@ -399,14 +399,14 @@ void uiElements::reset_eventlog(void)
 
 bool uiElements::is_critical(void)
 {
-    if ((avg_temp_berg->get_val() < ctrl_temprange.get_lbound()) ||
-        (avg_temp_erde->get_val() < ctrl_temprange.get_lbound()) ||
-        (avg_hum_berg->get_val() < ctrl_humrange.get_lbound()) ||
-        (avg_hum_erde->get_val() < ctrl_humrange.get_lbound()) ||
-        (avg_temp_berg->get_val() > ctrl_temprange.get_ubound()) ||
-        (avg_temp_erde->get_val() > ctrl_temprange.get_ubound()) ||
-        (avg_hum_berg->get_val() > ctrl_humrange.get_ubound()) ||
-        (avg_hum_erde->get_val() > ctrl_humrange.get_ubound()))
+    if ((avg_temp_berg->get_val() < ctrl_temprange1.get_lbound()) ||
+        (avg_temp_erde->get_val() < ctrl_temprange2.get_lbound()) ||
+        (avg_hum_berg->get_val() < ctrl_humrange1.get_lbound()) ||
+        (avg_hum_erde->get_val() < ctrl_humrange2.get_lbound()) ||
+        (avg_temp_berg->get_val() > ctrl_temprange1.get_ubound()) ||
+        (avg_temp_erde->get_val() > ctrl_temprange2.get_ubound()) ||
+        (avg_hum_berg->get_val() > ctrl_humrange1.get_ubound()) ||
+        (avg_hum_erde->get_val() > ctrl_humrange2.get_ubound()))
         return true;
     return false;
 }
