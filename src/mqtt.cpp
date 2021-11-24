@@ -7,6 +7,7 @@
 #include "ui.h"
 #include "circuits.h"
 #include "mqtt.h"
+#include "logger.h"
 
 static uiElements *ui;
 
@@ -39,13 +40,24 @@ void setup_mqtt(uiElements *u)
     mqtt_mutex = xSemaphoreCreateMutex();
     V(mqtt_mutex);
 
-    fcce_connection = new myMqttLocal(client_id, MQTT_FCCE, fcce_upstream, "fcce broker");
+    while (true)
+    try
+    {
+        fcce_connection = new myMqttLocal(client_id, MQTT_FCCE, fcce_upstream, "fcce broker");
+        break;
+    }
+    catch (String msg)
+    {
+        log_msg(msg + "... retrying");
+        delay(500);
+    }
 }
 
 void loop_mqtt()
 {
     std::for_each(mqtt_connections.begin(), mqtt_connections.end(),
-                  [](myMqtt *c) {
+                  [](myMqtt *c)
+                  {
                       if (c->connected())
                           c->loop();
                       else
@@ -99,13 +111,12 @@ myMqtt::myMqtt(const char *id, upstream_fn f, const char *n, const char *user, c
     mutex = xSemaphoreCreateMutex();
     name = (n ? n : id);
     if (!f)
-        up_fn = [](String &t, String &p) { log_msg(String(client_id) + " received: " + t + ":" + p); };
+        up_fn = [](String &t, String &p)
+        { log_msg(String(client_id) + " received: " + t + ":" + p); };
     else
         up_fn = f;
     V(mutex);
 
-    mqtt_connections.push_back(this);
-    log_msg(String(name) + " mqtt client created.");
 }
 
 void myMqtt::loop(void)
@@ -251,6 +262,9 @@ myMqttSec::myMqttSec(const char *id, const char *server, upstream_fn fn, const c
     client = new MQTTClient{256};
     client->begin(server, port, net);
     client->onMessage(up_fn);
+    mqtt_connections.push_back(this);
+    log_msg(String(name) + " mqtt client created." + String{(unsigned int)mutex});
+
     delay(50);
 }
 
@@ -275,13 +289,15 @@ myMqttLocal::myMqttLocal(const char *id, const char *server, upstream_fn fn, con
     IPAddress sv = MDNS.queryHost(server);
     if (uint32_t(sv) == 0)
     {
-        log_msg(String(name) + " mqtt broker '" + server + "' not found.");
-        return; // XXX throw exception here
+        throw (String(name) + " mqtt broker '" + server + "' not found ");
     }
 
     client->begin(sv, port, net);
     client->onMessage(up_fn);
-    // XXX callback
+
+    mqtt_connections.push_back(this);
+    log_msg(String(name) + " mqtt client created.");
+
     delay(50);
 }
 
@@ -329,7 +345,8 @@ static void fcce_upstream(String &t, String &payload)
 
     /* check circuit controlled via mqtt */
     std::for_each(circuits.begin(), circuits.end(),
-                  [&](genCircuit *c) {
+                  [&](genCircuit *c)
+                  {
                       if ((String("/") + c->get_name()) == topic)
                       {
                           ui->ui_P();
@@ -346,8 +363,9 @@ static void fcce_upstream(String &t, String &payload)
 
     /* check sensor update, find the corresponding sensor by name & update */
     std::for_each(remote_sensors.begin(), remote_sensors.end(),
-                  [&](genSensor *sensor) {
-                      //log_msg(String("checking '") + sens_name + "' against '" + sensor->get_name() + '\'');
+                  [&](genSensor *sensor)
+                  {
+                      //log_msg(String("checking '") + topic + "' against '" + sensor->get_name() + '\'');
                       if (*sensor == topic)
                       {
                           ui->ui_P();

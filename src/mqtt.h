@@ -45,7 +45,7 @@ protected:
 
 public:
     myMqtt(const char *id, upstream_fn up_fn = nullptr, const char *name = nullptr, const char *user = "", const char *pw = "");
-    virtual ~myMqtt() { delete client; };
+    virtual ~myMqtt() { delete client; vSemaphoreDelete(mutex); log_msg(String(name) + " destroyed.");};
 
     void set_conn_stat(conn_stat_t s) { P(mutex); conn_stat = s; V(mutex); }
     inline const char *get_name(void) { return name; }
