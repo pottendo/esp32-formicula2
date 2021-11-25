@@ -41,6 +41,7 @@ void setup_mqtt(uiElements *u)
     V(mqtt_mutex);
 
     while (true)
+    {
         try
         {
             fcce_connection = new myMqttLocal(client_id, MQTT_FCCE, fcce_upstream, "fcce broker");
@@ -51,6 +52,7 @@ void setup_mqtt(uiElements *u)
             log_msg(msg + "... retrying");
             delay(500);
         }
+    }
 }
 
 void loop_mqtt()
@@ -97,18 +99,21 @@ void mqtt_register_circuit(genCircuit *s)
 
 myMqtt *mqtt_register_logger(void)
 {
-    try
+    while (true)
     {
+        try
+        {
 #ifdef MQTT_LOG_LOCAL
-        return new myMqttLocal(client_id, MQTT_LOG, nullptr, "log broker", 1883, MQTT_LOG_USER, MQTT_LOG_PW);
+            return new myMqttLocal(client_id, MQTT_LOG, nullptr, "log broker", 1883, MQTT_LOG_USER, MQTT_LOG_PW);
 #else
-        return new myMqttSec(client_id, MQTT_LOG, nullptr, "log broker", 8883, MQTT_LOG_USER, MQTT_LOG_PW);
+            return new myMqttSec(client_id, MQTT_LOG, nullptr, "log broker", 8883, MQTT_LOG_USER, MQTT_LOG_PW);
 #endif
-    }
-    catch (String msg)
-    {
-        log_msg(msg + "... retrying");
-        delay(500);
+        }
+        catch (String msg)
+        {
+            log_msg(msg + "... retrying");
+            delay(500);
+        }
     }
 }
 

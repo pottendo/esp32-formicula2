@@ -25,6 +25,8 @@
 #include <list>
 #include <MQTT.h>
 
+//#define PUBLISH_LOG
+
 class myMqtt;
 
 class myLogger

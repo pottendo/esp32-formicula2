@@ -36,7 +36,6 @@ void logger_task(void *arg)
 }
 #endif
 
-#define PUBLISH_LOG
 static myMqtt *log_mqtt_client;
 void setup_logger(void)
 {
@@ -54,6 +53,8 @@ void log_publish(void)
 {
     msg_logger.publish(log_mqtt_client);
 }
+#else
+void log_publish(void) {}
 #endif
 /* helpers */
 void log_msg(String s, myLogger::myLog_t where, bool publish)
