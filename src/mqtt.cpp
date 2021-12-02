@@ -21,8 +21,8 @@ static const char *client_id = "fcc"; /* identify fcc uniquely on mqtt */
 
 static void fcce_upstream(String &t, String &payload);
 
-/* embedded device name fcce.local on network*/
-#define MQTT_FCCE "fcce"
+/* embedded device name fcc.rpi on network*/
+#define MQTT_FCCE "fcc-rpi"
 
 #include "mqtt-cred.h"
 #ifndef MQTT_CRED
