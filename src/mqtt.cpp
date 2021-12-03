@@ -298,13 +298,14 @@ myMqttLocal::myMqttLocal(const char *id, const char *server, upstream_fn fn, con
     : myMqtt(id, fn, n, user, pw)
 {
     client = new MQTTClient{256}; /* default msg size, 128 */
+/*    
     IPAddress sv = MDNS.queryHost(server);
     if (uint32_t(sv) == 0)
     {
         throw(String(name) + " mqtt broker '" + server + "' not found ");
     }
-
-    client->begin(sv, port, net);
+*/
+    client->begin(server, port, net);
     client->onMessage(up_fn);
 
     mqtt_connections.push_back(this);
