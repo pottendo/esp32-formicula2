@@ -135,7 +135,7 @@ void setup()
                                      static unsigned long last = 0;
                                      static uint8_t state = HIGH;
 
-                                     if ((millis() - last) > 1000 * 60 * 30) /* for 30 minutes interval */
+                                     if ((millis() - last) > 1000 * 60 * 15) /* for 15 minutes interval */
                                      {
                                          log_msg(c->get_name() + ": running fallback");
                                          c->io_set(((state == HIGH) ? LOW : HIGH), true, true);
@@ -148,7 +148,19 @@ void setup()
                                  5,
                                  myRange<float>{72.0, 80.0},
                                  myRange<float>{72.0, 80.0},
-                                 ctrl_humrange1); // inverse logic for fan as hum drops
+                                 ctrl_humrange1,
+                                 [](genCircuit *c) {
+                                     static unsigned long last = 0;
+                                     static uint8_t state = HIGH;
+
+                                     if ((millis() - last) > 1000 * 60 * 10) /* for 10 minutes interval */
+                                     {
+                                         log_msg(c->get_name() + ": running fallback");
+                                         c->io_set(((state == HIGH) ? LOW : HIGH), true, true);
+                                         state = !state;
+                                         last = millis();
+                                     }
+                                 }); // inverse logic for fan as hum drops
 
     circuit_dhum =
         new myCircuit<genSensor>(ui, "Nebler", *berg_hum, *io_fog,
